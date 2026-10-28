@@ -111,6 +111,8 @@ check( 'finalize: still valid', WPTA_AI::validate_layout( $final ), '' );
 $headless = "---\nimport site from '../site.json';\n---\n<html lang=\"en\"><body>{site.stylesheets}{site.menu}<slot /></body></html>";
 check( 'finalize: adds <head> when missing', str_contains( WPTA_AI::finalize_layout( $headless ), "<html lang=\"en\">\n<head>\n  <SeoHead" ), true );
 
+check( 'reject hard-coded archive link', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><a href="/2026/10/">October</a>', $ai_layout ) ), 'hard-coded link to /2026/10/… (widgets and archive links must be left out).' );
+check( 'reject hard-coded category link', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><a href="/category/x/">X</a>', $ai_layout ) ), 'hard-coded link to /category/… (widgets and archive links must be left out).' );
 check( 'reject className', WPTA_AI::validate_layout( str_replace( '<nav>', '<nav className="x">', $ai_layout ) ), 'contains forbidden code: className=' );
 check( 'reject foreign import', WPTA_AI::validate_layout( str_replace( "import site from '../site.json';", "import site from '../site.json';\nimport X from 'x';", $ai_layout ) ), "import from 'x' is not allowed." );
 

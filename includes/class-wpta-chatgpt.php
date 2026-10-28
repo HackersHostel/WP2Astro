@@ -174,14 +174,15 @@ class WPTA_ChatGPT {
 		$s['client_id'] = $client;
 		$s['sub']       = (string) ( $claims['sub'] ?? '' );
 		$s['email']     = (string) ( $claims['email'] ?? '' );
-		self::store_tokens( $s, $tokens );
+		$s              = self::store_tokens( $s, $tokens );
 		if ( empty( $s['plan'] ) ) {
 			return new WP_Error( 'wpta_chatgpt_plan', 'You signed in, but ChatGPT plan usage was not allowed. Sign in again and allow it, or pick another provider.' );
 		}
 		return true;
 	}
 
-	private static function store_tokens( array $s, array $tokens ): void {
+	/** @return array The saved state. */
+	private static function store_tokens( array $s, array $tokens ): array {
 		$scopes                  = explode( ' ', (string) ( $tokens['scope'] ?? '' ) );
 		$s['access_token']       = (string) ( $tokens['access_token'] ?? '' );
 		$s['refresh_token']      = (string) ( $tokens['refresh_token'] ?? $s['refresh_token'] ?? '' );
@@ -190,6 +191,7 @@ class WPTA_ChatGPT {
 		$s['earliest_refresh']   = (int) ( $tokens['earliest_refresh_at'] ?? 0 );
 		$s['plan']               = in_array( self::PLAN_SCOPE, $scopes, true );
 		self::save( $s );
+		return $s;
 	}
 
 	private static function claims( string $jwt ): array {

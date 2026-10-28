@@ -74,7 +74,9 @@ RULES — the file is rejected if any rule is broken:
 7. Put <slot /> exactly where the page content goes (where the source shows <!-- PAGE CONTENT -->).
 8. Keep the theme's element structure, ids and class names so its CSS still applies.
 9. Use site.title / site.description instead of hard-coded site name text.
-10. No PHP, no <script> tags, no WordPress admin bar, no comments forms, no widgets that need a server.
+10. No PHP, no <script> tags, no WordPress admin bar, no comment forms. Leave out sidebars and widget areas entirely
+    (recent posts, archives, categories, tags, calendar, search, meta) and "Powered by WordPress" credits.
+    Never hard-code links to posts, dates or categories: the only links are site.menu items and the home link.
 11. Use `class`, not `className`. Close every tag.
 12. Keep theme images (logo, header image) with their /theme/… paths exactly as in the source.
 
@@ -121,6 +123,9 @@ TXT;
 		}
 		if ( preg_match( '/<\?php|className=|<script\b|Astro\.glob|import\.meta\.glob/i', $code, $bad ) ) {
 			return "contains forbidden code: {$bad[0]}";
+		}
+		if ( preg_match( '#href=["\'](/\d{4}/\d{2}/|/category/|/tag/)#', $code, $bad ) ) {
+			return "hard-coded link to {$bad[1]}… (widgets and archive links must be left out).";
 		}
 		if ( substr_count( $tpl, '{' ) !== substr_count( $tpl, '}' ) ) {
 			return 'unbalanced { } braces in the template.';
