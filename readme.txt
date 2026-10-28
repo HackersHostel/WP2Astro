@@ -1,5 +1,5 @@
 === WP2Astro ===
-Contributors: hackershostel
+Contributors: mahedi-emon
 Tags: static site, astro, export, migration, github
 Requires at least: 6.5
 Tested up to: 7.1
