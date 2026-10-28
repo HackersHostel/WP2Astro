@@ -2,243 +2,266 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Settings storage + the Tools → WP to Astro admin page.
+ * Settings storage, model providers and branding.
+ * Secrets (API keys, GitHub token) are encrypted at rest with WPTA_Secrets.
  */
 class WPTA_Settings {
 
 	const OPTION = 'wpta_settings';
-	const SLUG   = 'wp-to-astro';
+	const SLUG   = 'wp2astro';
 
-	/** Provider presets: base URL + example model. */
-	public static function presets(): array {
+	/** Fields in `keys` and these top-level fields are stored encrypted. */
+	const SECRETS = array( 'github_token' );
+
+	/**
+	 * Model providers.
+	 * kind: openai (OpenAI-compatible /chat/completions), anthropic (Messages API), chatgpt (Sign in with ChatGPT, Responses API).
+	 * group: free | credits | plan | key — how the user pays.
+	 */
+	public static function providers(): array {
 		return array(
 			'ollama'     => array(
-				'label'    => 'Ollama (local) — Gemma',
+				'label'    => 'Ollama',
+				'group'    => 'free',
+				'kind'     => 'openai',
 				'base_url' => 'http://localhost:11434/v1',
 				'model'    => 'gemma3',
+				'key'      => false,
+				'note'     => 'Free. Runs open models such as Gemma on your own machine or server; content never leaves it.',
+				'help'     => 'https://ollama.com/download',
+			),
+			'lmstudio'   => array(
+				'label'    => 'LM Studio',
+				'group'    => 'free',
+				'kind'     => 'openai',
+				'base_url' => 'http://localhost:1234/v1',
+				'model'    => '',
+				'key'      => false,
+				'note'     => 'Free. Start the local server in LM Studio and load a model.',
+				'help'     => 'https://lmstudio.ai/',
 			),
 			'openrouter' => array(
 				'label'    => 'OpenRouter',
+				'group'    => 'credits',
+				'kind'     => 'openai',
 				'base_url' => 'https://openrouter.ai/api/v1',
 				'model'    => 'google/gemma-3-27b-it',
+				'key'      => true,
+				'connect'  => 'openrouter',
+				'note'     => 'One account for hundreds of models, including free ones. Pay as you go with credits.',
+				'help'     => 'https://openrouter.ai/models',
+			),
+			'chatgpt'    => array(
+				'label'    => 'ChatGPT plan',
+				'group'    => 'plan',
+				'kind'     => 'chatgpt',
+				'base_url' => 'https://api.openai.com/v1',
+				'model'    => '',
+				'key'      => false,
+				'connect'  => 'chatgpt',
+				'note'     => 'Use your ChatGPT Plus or Pro plan through Sign in with ChatGPT. No API key needed.',
+				'help'     => 'https://chatgpt.com/settings/usage',
+			),
+			'anthropic'  => array(
+				'label'    => 'Claude API',
+				'group'    => 'key',
+				'kind'     => 'anthropic',
+				'base_url' => 'https://api.anthropic.com/v1',
+				'model'    => 'claude-sonnet-5-5',
+				'key'      => true,
+				'note'     => 'Claude with an Anthropic API key. To use a Claude subscription instead, finish the site in Claude Code with the agent kit.',
+				'help'     => 'https://console.anthropic.com/settings/keys',
+			),
+			'openai'     => array(
+				'label'    => 'OpenAI API',
+				'group'    => 'key',
+				'kind'     => 'openai',
+				'base_url' => 'https://api.openai.com/v1',
+				'model'    => '',
+				'key'      => true,
+				'note'     => 'OpenAI models with an API key.',
+				'help'     => 'https://platform.openai.com/api-keys',
 			),
 			'deepseek'   => array(
 				'label'    => 'DeepSeek',
+				'group'    => 'key',
+				'kind'     => 'openai',
 				'base_url' => 'https://api.deepseek.com',
 				'model'    => 'deepseek-chat',
+				'key'      => true,
+				'note'     => 'DeepSeek models with an API key.',
+				'help'     => 'https://platform.deepseek.com/api_keys',
 			),
 			'custom'     => array(
-				'label'    => 'Custom (OpenAI-compatible)',
+				'label'    => 'Custom',
+				'group'    => 'key',
+				'kind'     => 'openai',
 				'base_url' => '',
 				'model'    => '',
+				'key'      => true,
+				'note'     => 'Any OpenAI-compatible /chat/completions endpoint (vLLM, llama.cpp, LiteLLM, Groq, Together…).',
+				'help'     => '',
 			),
 			'none'       => array(
-				'label'    => 'No AI (export only)',
+				'label'    => 'No AI',
+				'group'    => 'free',
+				'kind'     => 'none',
 				'base_url' => '',
 				'model'    => '',
+				'key'      => false,
+				'note'     => 'Export only: a working Astro site with a clean default layout. Dead shortcodes are listed in the report.',
+				'help'     => '',
 			),
 		);
 	}
 
 	public static function defaults(): array {
-		$p = self::presets()['ollama'];
 		return array(
 			'provider'     => 'ollama',
-			'base_url'     => $p['base_url'],
-			'api_key'      => '',
-			'model'        => $p['model'],
+			'models'       => array(),
+			'base_urls'    => array(),
+			'keys'         => array(),
 			'ai_layout'    => 1,
 			'ai_cleanup'   => 1,
 			'github_token' => '',
+			'github_login' => '',
+			'github_auth'  => '',
 			'repo_name'    => sanitize_title( get_bloginfo( 'name' ) ?: 'my-site' ) . '-astro',
 			'repo_private' => 1,
+			'auto_sync'    => 0,
+			'seo'          => 1,
+			'feeds'        => 1,
+			'search'       => 1,
+			'cpts'         => 1,
+			'agent_kit'    => 1,
 		);
 	}
 
+	/** Decrypted settings. */
 	public static function get(): array {
 		$saved = get_option( self::OPTION, array() );
-		return array_merge( self::defaults(), is_array( $saved ) ? $saved : array() );
+		$s     = array_merge( self::defaults(), is_array( $saved ) ? $saved : array() );
+		foreach ( self::SECRETS as $f ) {
+			$s[ $f ] = WPTA_Secrets::open( (string) $s[ $f ] );
+		}
+		$s['keys'] = array_map( fn( $v ) => WPTA_Secrets::open( (string) $v ), (array) $s['keys'] );
+		// 0.1 kept one plain-text key for the selected provider.
+		if ( ! empty( $s['api_key'] ) && empty( $s['keys'][ $s['provider'] ] ) ) {
+			$s['keys'][ $s['provider'] ] = (string) $s['api_key'];
+		}
+		return $s;
 	}
 
-	public static function ai_enabled(): bool {
-		$s = self::get();
-		return 'none' !== $s['provider'] && '' !== trim( $s['base_url'] ) && '' !== trim( $s['model'] );
-	}
-
-	public static function init(): void {
-		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
-		add_action( 'admin_init', array( __CLASS__, 'register' ) );
-		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
-	}
-
-	public static function menu(): void {
-		add_management_page( 'WP to Astro', 'WP to Astro', 'manage_options', self::SLUG, array( __CLASS__, 'render' ) );
-	}
-
-	public static function register(): void {
-		register_setting(
-			'wpta',
-			self::OPTION,
-			array(
-				'type'              => 'array',
-				'sanitize_callback' => array( __CLASS__, 'sanitize' ),
-				'default'           => self::defaults(),
-			)
-		);
-		// Secrets live here, so create the option with autoload off.
+	/** Merge $changes into the stored settings (plain values in, encrypted at rest). */
+	public static function update( array $changes ): void {
+		$s = array_merge( self::get(), $changes );
+		unset( $s['api_key'], $s['base_url'], $s['model'] ); // 0.1 fields, migrated in get().
+		foreach ( self::SECRETS as $f ) {
+			$s[ $f ] = WPTA_Secrets::seal( (string) $s[ $f ] );
+		}
+		$s['keys'] = array_map( fn( $v ) => WPTA_Secrets::seal( (string) $v ), array_filter( (array) $s['keys'], 'strlen' ) );
 		if ( false === get_option( self::OPTION, false ) ) {
-			add_option( self::OPTION, self::defaults(), '', false );
+			add_option( self::OPTION, $s, '', false );
+		} else {
+			update_option( self::OPTION, $s, false );
 		}
 	}
 
-	public static function sanitize( $in ): array {
-		$old = self::get();
-		$in  = is_array( $in ) ? $in : array();
-		$out = array();
+	/**
+	 * The active provider, resolved: definition + base_url, model and key in use.
+	 *
+	 * @param string $id Provider id; defaults to the selected one.
+	 */
+	public static function provider( string $id = '' ): array {
+		$s   = self::get();
+		$id  = $id ?: $s['provider'];
+		$all = self::providers();
+		$p   = $all[ $id ] ?? $all['none'];
 
-		$out['provider'] = array_key_exists( $in['provider'] ?? '', self::presets() ) ? $in['provider'] : 'ollama';
-		$out['base_url'] = esc_url_raw( trim( $in['base_url'] ?? '' ) );
-		$out['model']    = sanitize_text_field( $in['model'] ?? '' );
+		$p['id']       = isset( $all[ $id ] ) ? $id : 'none';
+		$p['base_url'] = rtrim( trim( (string) ( $s['base_urls'][ $id ] ?? '' ) ) ?: $p['base_url'], '/' );
+		$p['model']    = trim( (string) ( $s['models'][ $id ] ?? '' ) ) ?: $p['model'];
+		$p['api_key']  = (string) ( $s['keys'][ $id ] ?? '' );
+		return $p;
+	}
 
-		// Blank secret field = keep the stored value.
-		$key            = trim( (string) ( $in['api_key'] ?? '' ) );
-		$out['api_key'] = '' === $key ? $old['api_key'] : sanitize_text_field( $key );
-		if ( ! empty( $in['clear_api_key'] ) ) {
-			$out['api_key'] = '';
+	/** Whether the selected provider is configured enough to try. */
+	public static function ai_enabled(): bool {
+		$p = self::provider();
+		if ( 'none' === $p['kind'] || '' === $p['base_url'] || '' === $p['model'] ) {
+			return false;
 		}
-		$tok                 = trim( (string) ( $in['github_token'] ?? '' ) );
-		$out['github_token'] = '' === $tok ? $old['github_token'] : sanitize_text_field( $tok );
-		if ( ! empty( $in['clear_github_token'] ) ) {
-			$out['github_token'] = '';
+		if ( 'chatgpt' === $p['kind'] ) {
+			return WPTA_ChatGPT::connected();
+		}
+		return ! $p['key'] || '' !== $p['api_key'] || 'custom' === $p['id'];
+	}
+
+	public static function github_connected(): bool {
+		return '' !== self::get()['github_token'];
+	}
+
+	/** Sanitize the settings form (admin-post). Secrets: blank = keep. */
+	public static function from_form( array $in ): array {
+		$old       = self::get();
+		$providers = self::providers();
+		$out       = array();
+
+		$out['provider'] = isset( $providers[ $in['provider'] ?? '' ] ) ? $in['provider'] : $old['provider'];
+
+		$out['models'] = $old['models'];
+		foreach ( (array) ( $in['models'] ?? array() ) as $id => $model ) {
+			if ( isset( $providers[ $id ] ) ) {
+				$out['models'][ $id ] = sanitize_text_field( wp_unslash( $model ) );
+			}
+		}
+		$out['base_urls'] = $old['base_urls'];
+		foreach ( (array) ( $in['base_urls'] ?? array() ) as $id => $url ) {
+			if ( isset( $providers[ $id ] ) ) {
+				$out['base_urls'][ $id ] = esc_url_raw( trim( wp_unslash( $url ) ) );
+			}
+		}
+		$out['keys'] = $old['keys'];
+		foreach ( (array) ( $in['keys'] ?? array() ) as $id => $key ) {
+			$key = trim( sanitize_text_field( wp_unslash( $key ) ) );
+			if ( isset( $providers[ $id ] ) && '' !== $key ) {
+				$out['keys'][ $id ] = $key;
+			}
+		}
+		foreach ( (array) ( $in['clear_keys'] ?? array() ) as $id => $on ) {
+			unset( $out['keys'][ $id ] );
 		}
 
-		$out['ai_layout']    = empty( $in['ai_layout'] ) ? 0 : 1;
-		$out['ai_cleanup']   = empty( $in['ai_cleanup'] ) ? 0 : 1;
-		$out['repo_name']    = preg_replace( '/[^A-Za-z0-9._-]/', '-', (string) ( $in['repo_name'] ?? '' ) ) ?: self::defaults()['repo_name'];
-		$out['repo_private'] = empty( $in['repo_private'] ) ? 0 : 1;
+		$tok = trim( sanitize_text_field( wp_unslash( $in['github_token'] ?? '' ) ) );
+		if ( '' !== $tok ) {
+			$out['github_token'] = $tok;
+			$out['github_auth']  = 'pat';
+			$out['github_login'] = '';
+		}
+
+		$repo              = preg_replace( '/[^A-Za-z0-9._-]/', '-', (string) wp_unslash( $in['repo_name'] ?? '' ) );
+		$out['repo_name']  = $repo ?: $old['repo_name'];
+		foreach ( array( 'ai_layout', 'ai_cleanup', 'repo_private', 'auto_sync', 'seo', 'feeds', 'search', 'cpts', 'agent_kit' ) as $flag ) {
+			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
+		}
 		return $out;
 	}
 
-	public static function assets( string $hook ): void {
-		if ( 'tools_page_' . self::SLUG !== $hook ) {
-			return;
-		}
-		wp_enqueue_style( 'wpta-admin', WPTA_URL . 'assets/admin.css', array(), WPTA_VERSION );
-		wp_enqueue_script( 'wpta-admin', WPTA_URL . 'assets/admin.js', array(), WPTA_VERSION, true );
-		wp_localize_script(
-			'wpta-admin',
-			'WPTA',
+	/**
+	 * Name and links shown in the admin and in generated files.
+	 * Licensed white-label builds override this with the `wpta_brand` filter or the WP2ASTRO_BRAND_* constants.
+	 */
+	public static function brand(): array {
+		return apply_filters(
+			'wpta_brand',
 			array(
-				'ajax'    => admin_url( 'admin-ajax.php' ),
-				'nonce'   => wp_create_nonce( 'wpta' ),
-				'presets' => self::presets(),
+				'name'    => defined( 'WP2ASTRO_BRAND_NAME' ) ? WP2ASTRO_BRAND_NAME : 'WP2Astro',
+				'by'      => defined( 'WP2ASTRO_BRAND_BY' ) ? WP2ASTRO_BRAND_BY : 'Hackers Hostel',
+				'url'     => defined( 'WP2ASTRO_BRAND_URL' ) ? WP2ASTRO_BRAND_URL : 'https://github.com/HackersHostel/wp2astro',
+				'docs'    => defined( 'WP2ASTRO_BRAND_DOCS' ) ? WP2ASTRO_BRAND_DOCS : 'https://github.com/HackersHostel/wp2astro/tree/main/docs',
+				'support' => defined( 'WP2ASTRO_BRAND_SUPPORT' ) ? WP2ASTRO_BRAND_SUPPORT : 'https://github.com/HackersHostel/wp2astro/issues',
+				'logo'    => defined( 'WP2ASTRO_BRAND_LOGO' ) ? WP2ASTRO_BRAND_LOGO : WPTA_URL . 'assets/logo.svg',
 			)
 		);
-	}
-
-	private static function mask( string $secret ): string {
-		return '' === $secret ? '' : str_repeat( '•', 8 ) . substr( $secret, -4 );
-	}
-
-	public static function render(): void {
-		if ( ! current_user_can( 'manage_options' ) ) {
-			return;
-		}
-		$s   = self::get();
-		$opt = self::OPTION;
-		?>
-		<div class="wrap wpta">
-			<h1>WP to Astro</h1>
-			<p>Convert this WordPress site into an Astro project. Posts and pages keep their URLs; an AI model rebuilds the theme layout and cleans up dead shortcodes.</p>
-
-			<div class="wpta-grid">
-				<div class="wpta-card">
-					<h2>1. Settings</h2>
-					<form method="post" action="options.php">
-						<?php settings_fields( 'wpta' ); ?>
-						<h3>Model</h3>
-						<table class="form-table" role="presentation">
-							<tr>
-								<th><label for="wpta-provider">Provider</label></th>
-								<td>
-									<select id="wpta-provider" name="<?php echo esc_attr( $opt ); ?>[provider]">
-										<?php foreach ( self::presets() as $id => $p ) : ?>
-											<option value="<?php echo esc_attr( $id ); ?>" <?php selected( $s['provider'], $id ); ?>><?php echo esc_html( $p['label'] ); ?></option>
-										<?php endforeach; ?>
-									</select>
-									<p class="description">Any OpenAI-compatible <code>/chat/completions</code> endpoint works.</p>
-								</td>
-							</tr>
-							<tr class="wpta-ai-row">
-								<th><label for="wpta-base">Base URL</label></th>
-								<td><input id="wpta-base" class="regular-text" type="url" name="<?php echo esc_attr( $opt ); ?>[base_url]" value="<?php echo esc_attr( $s['base_url'] ); ?>"></td>
-							</tr>
-							<tr class="wpta-ai-row">
-								<th><label for="wpta-model">Model</label></th>
-								<td><input id="wpta-model" class="regular-text" type="text" name="<?php echo esc_attr( $opt ); ?>[model]" value="<?php echo esc_attr( $s['model'] ); ?>"></td>
-							</tr>
-							<tr class="wpta-ai-row">
-								<th><label for="wpta-key">API key</label></th>
-								<td>
-									<input id="wpta-key" class="regular-text" type="password" autocomplete="off" name="<?php echo esc_attr( $opt ); ?>[api_key]" value="" placeholder="<?php echo esc_attr( self::mask( $s['api_key'] ) ?: 'Not needed for local Ollama' ); ?>">
-									<?php if ( $s['api_key'] ) : ?>
-										<label><input type="checkbox" name="<?php echo esc_attr( $opt ); ?>[clear_api_key]" value="1"> Clear</label>
-									<?php endif; ?>
-								</td>
-							</tr>
-							<tr class="wpta-ai-row">
-								<th>AI steps</th>
-								<td>
-									<label><input type="checkbox" name="<?php echo esc_attr( $opt ); ?>[ai_layout]" value="1" <?php checked( $s['ai_layout'] ); ?>> Rebuild the theme layout as an Astro component</label><br>
-									<label><input type="checkbox" name="<?php echo esc_attr( $opt ); ?>[ai_cleanup]" value="1" <?php checked( $s['ai_cleanup'] ); ?>> Clean up dead shortcodes in posts</label>
-								</td>
-							</tr>
-						</table>
-
-						<h3>GitHub <span class="wpta-muted">(optional)</span></h3>
-						<table class="form-table" role="presentation">
-							<tr>
-								<th><label for="wpta-token">Access token</label></th>
-								<td>
-									<input id="wpta-token" class="regular-text" type="password" autocomplete="off" name="<?php echo esc_attr( $opt ); ?>[github_token]" value="" placeholder="<?php echo esc_attr( self::mask( $s['github_token'] ) ?: 'github_pat_…' ); ?>">
-									<?php if ( $s['github_token'] ) : ?>
-										<label><input type="checkbox" name="<?php echo esc_attr( $opt ); ?>[clear_github_token]" value="1"> Clear</label>
-									<?php endif; ?>
-									<p class="description">Fine-grained token with <strong>Administration</strong> and <strong>Contents</strong> set to read &amp; write. Leave empty to only download a zip.</p>
-								</td>
-							</tr>
-							<tr>
-								<th><label for="wpta-repo">Repository name</label></th>
-								<td>
-									<input id="wpta-repo" class="regular-text" type="text" name="<?php echo esc_attr( $opt ); ?>[repo_name]" value="<?php echo esc_attr( $s['repo_name'] ); ?>">
-									<label><input type="checkbox" name="<?php echo esc_attr( $opt ); ?>[repo_private]" value="1" <?php checked( $s['repo_private'] ); ?>> Private</label>
-								</td>
-							</tr>
-						</table>
-						<?php submit_button( 'Save settings' ); ?>
-					</form>
-				</div>
-
-				<div class="wpta-card">
-					<h2>2. Convert</h2>
-					<?php
-					$counts = wp_count_posts( 'post' );
-					$pages  = wp_count_posts( 'page' );
-					?>
-					<p><?php echo esc_html( sprintf( '%d published posts and %d pages will be converted.', (int) $counts->publish, (int) $pages->publish ) ); ?></p>
-					<p>
-						Model: <strong><?php echo esc_html( self::ai_enabled() ? $s['model'] : 'none (export only)' ); ?></strong><br>
-						GitHub: <strong><?php echo esc_html( $s['github_token'] ? $s['repo_name'] : 'not connected (zip only)' ); ?></strong>
-					</p>
-					<p><button type="button" class="button button-primary button-hero" id="wpta-start">Convert to Astro</button></p>
-					<div id="wpta-result" hidden></div>
-					<pre id="wpta-log" hidden></pre>
-
-					<h3>Where to host it</h3>
-					<p>Deploy the repo with <a href="https://flywp.com/features/nodejs-deployments/" target="_blank" rel="noopener">FlyWP Node.js deployments</a> on a DigitalOcean droplet. FlyWP's free plan covers one server and one site; the droplet is billed by DigitalOcean. Build command <code>npm run build</code>, start command <code>npm start</code>.</p>
-				</div>
-			</div>
-		</div>
-		<?php
 	}
 }

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WP2Astro">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff5d01"/>
+      <stop offset="1" stop-color="#b845ed"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#17191e"/>
+  <path d="M32 9 15 54h7.4l3.6-9.4h12l3.6 9.4H49L32 9Zm0 14.6 4 11.4h-8l4-11.4Z" fill="url(#g)"/>
+  <circle cx="49" cy="15" r="4" fill="#fff"/>
+</svg>

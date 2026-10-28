@@ -2,13 +2,16 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Deterministic export: site data, posts/pages → Markdown, media and theme assets.
+ * Deterministic export: site data, entries → Markdown, SEO meta, redirects, media and theme assets.
  */
 class WPTA_Exporter {
 
 	const ASSET_EXT       = array( 'css', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'ico', 'woff', 'woff2', 'ttf', 'otf', 'eot' );
 	const MAX_ASSET_BYTES = 5 * MB_IN_BYTES;
 	const MAX_MEDIA_BYTES = 50 * MB_IN_BYTES;
+	/** Commerce and builder internals: not content a static site can serve. */
+	const SKIP_TYPES = array( 'attachment', 'product', 'product_variation', 'shop_order', 'shop_coupon', 'elementor_library', 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' );
+
 	const KNOWN_SHORTCODES = array( 'gallery', 'caption', 'embed', 'video', 'audio', 'playlist', 'contact-form', 'contact-form-7', 'button', 'column', 'columns', 'row', 'tabs', 'tab', 'toggle', 'accordion', 'slider', 'map', 'youtube', 'vimeo', 'spoiler', 'quote', 'box', 'alert', 'note' );
 
 	/* ------------------------------------------------------------------ URLs */
@@ -64,6 +67,18 @@ class WPTA_Exporter {
 		$blog_base    = $static_front && $posts_page ? self::permalink( get_post( $posts_page ) ) : '/';
 		$name         = html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 
+		$s        = WPTA_Settings::get();
+		$archives = array();
+		foreach ( array_diff( self::post_types(), array( 'post', 'page' ) ) as $type ) {
+			$obj  = get_post_type_object( $type );
+			$link = get_post_type_archive_link( $type );
+			$archives[] = array(
+				'type'  => $type,
+				'label' => html_entity_decode( $obj->labels->name, ENT_QUOTES ),
+				'path'  => $obj->has_archive && $link ? self::rel_url( trailingslashit( $link ) ) : '',
+			);
+		}
+
 		return array(
 			'title'        => $name,
 			'description'  => html_entity_decode( get_bloginfo( 'description' ), ENT_QUOTES ),
@@ -78,6 +93,14 @@ class WPTA_Exporter {
 			'categories'   => $cats,
 			'tags'         => $tags,
 			'stylesheets'  => $stylesheets,
+			'archives'     => $archives,
+			'features'     => array(
+				'seo'      => (bool) $s['seo'],
+				'feeds'    => (bool) $s['feeds'],
+				'search'   => (bool) $s['search'],
+				'agentKit' => (bool) $s['agent_kit'],
+			),
+			'generator'    => WPTA_Settings::brand()['name'] . ' ' . WPTA_VERSION,
 		);
 	}
 
@@ -120,10 +143,23 @@ class WPTA_Exporter {
 
 	/* ---------------------------------------------------------------- Entries */
 
+	/** Post types to export: posts, pages and (when enabled) public custom post types. */
+	public static function post_types(): array {
+		$types = array( 'post', 'page' );
+		if ( WPTA_Settings::get()['cpts'] ) {
+			foreach ( get_post_types( array( 'public' => true, '_builtin' => false ), 'names' ) as $t ) {
+				if ( ! in_array( $t, self::SKIP_TYPES, true ) && is_post_type_viewable( $t ) ) {
+					$types[] = $t;
+				}
+			}
+		}
+		return array_values( array_unique( (array) apply_filters( 'wpta_post_types', $types ) ) );
+	}
+
 	public static function entry_ids(): array {
 		return get_posts(
 			array(
-				'post_type'      => array( 'post', 'page' ),
+				'post_type'      => self::post_types(),
 				'post_status'    => 'publish',
 				'posts_per_page' => -1,
 				'fields'         => 'ids',
@@ -135,7 +171,7 @@ class WPTA_Exporter {
 	}
 
 	/**
-	 * @return array{path:string, markdown:string, media:string[], flags:string[], permalink:string, title:string}
+	 * @return array{path:string, markdown:string, media:string[], flags:string[], permalink:string, title:string, type:string, redirects:array<string,string>}
 	 */
 	public static function entry( int $id ): array {
 		$post = get_post( $id );
@@ -184,11 +220,21 @@ class WPTA_Exporter {
 		if ( $featured ) {
 			$front['featuredImage'] = $featured;
 		}
+		if ( WPTA_Settings::get()['seo'] ) {
+			foreach ( self::seo( $post ) as $k => $v ) {
+				$front[ $k ] = $v;
+			}
+		}
 
 		$slug = $post->post_name ?: 'entry-' . $id;
-		$path = 'post' === $post->post_type
-			? 'src/content/posts/' . get_post_time( 'Y-m-d', false, $post ) . '-' . $slug . '.md'
-			: 'src/content/pages/' . str_replace( '/', '--', get_page_uri( $post ) ?: $slug ) . '.md';
+		if ( 'post' === $post->post_type ) {
+			$path = 'src/content/posts/' . get_post_time( 'Y-m-d', false, $post ) . '-' . $slug . '.md';
+		} elseif ( 'page' === $post->post_type ) {
+			$path = 'src/content/pages/' . str_replace( '/', '--', get_page_uri( $post ) ?: $slug ) . '.md';
+		} else {
+			$uri  = is_post_type_hierarchical( $post->post_type ) ? get_page_uri( $post ) : $slug;
+			$path = 'src/content/items/' . sanitize_key( $post->post_type ) . '/' . str_replace( '/', '--', $uri ?: $slug ) . '.md';
+		}
 
 		return array(
 			'path'      => $path,
@@ -197,7 +243,160 @@ class WPTA_Exporter {
 			'flags'     => $flags,
 			'permalink' => $front['permalink'],
 			'title'     => $front['title'],
+			'type'      => $post->post_type,
+			'redirects' => self::old_slugs( $post, $front['permalink'] ),
 		);
+	}
+
+	/* -------------------------------------------------------------------- SEO */
+
+	/** Name of the active SEO plugin we read from, or ''. */
+	public static function seo_plugin(): string {
+		if ( function_exists( 'YoastSEO' ) ) {
+			return 'Yoast SEO';
+		}
+		if ( class_exists( 'RankMath\\Helper' ) ) {
+			return 'Rank Math';
+		}
+		if ( function_exists( 'aioseo' ) ) {
+			return 'All in One SEO';
+		}
+		return '';
+	}
+
+	/**
+	 * Title, description, noindex and canonical as the SEO plugin would print them.
+	 * Falls back to stored meta (with basic variables replaced) when the plugin is gone.
+	 *
+	 * @return array{seoTitle?:string, seoDescription?:string, noindex?:bool, canonical?:string}
+	 */
+	public static function seo( WP_Post $post ): array {
+		$title = '';
+		$desc  = '';
+		$robot = '';
+		$canon = '';
+		try {
+			switch ( self::seo_plugin() ) {
+				case 'Yoast SEO':
+					$meta  = YoastSEO()->meta->for_post( $post->ID );
+					$title = $meta ? (string) $meta->title : '';
+					$desc  = $meta ? (string) $meta->description : '';
+					$robot = $meta ? implode( ',', (array) $meta->robots ) : '';
+					$canon = (string) get_post_meta( $post->ID, '_yoast_wpseo_canonical', true );
+					break;
+				case 'Rank Math':
+					$title = (string) \RankMath\Post::get_meta( 'title', $post->ID );
+					$desc  = (string) \RankMath\Post::get_meta( 'description', $post->ID );
+					$title = $title ? \RankMath\Helper::replace_vars( $title, $post ) : '';
+					$desc  = $desc ? \RankMath\Helper::replace_vars( $desc, $post ) : '';
+					$robot = implode( ',', (array) \RankMath\Post::get_meta( 'robots', $post->ID ) );
+					$canon = (string) \RankMath\Post::get_meta( 'canonical_url', $post->ID );
+					break;
+				case 'All in One SEO':
+					$title = (string) aioseo()->meta->title->getPostTitle( $post );
+					$desc  = (string) aioseo()->meta->description->getPostDescription( $post );
+					break;
+			}
+		} catch ( Throwable $e ) {
+			$title = '';
+			$desc  = '';
+		}
+
+		if ( '' === $title && '' === $desc ) {
+			$vars  = array(
+				'title'    => get_the_title( $post ),
+				'sitename' => get_bloginfo( 'name' ),
+				'sitedesc' => get_bloginfo( 'description' ),
+				'sep'      => '–',
+				'excerpt'  => wp_strip_all_tags( get_the_excerpt( $post ) ),
+			);
+			$fill  = function ( string $t ) use ( $vars ): string {
+				$t = preg_replace_callback( '/%%?([a-z_]+)%%?/', fn( $m ) => $vars[ $m[1] ] ?? '', $t );
+				return trim( preg_replace( '/\s+/', ' ', $t ) );
+			};
+			$title = $fill( (string) ( get_post_meta( $post->ID, '_yoast_wpseo_title', true ) ?: get_post_meta( $post->ID, 'rank_math_title', true ) ) );
+			$desc  = $fill( (string) ( get_post_meta( $post->ID, '_yoast_wpseo_metadesc', true ) ?: get_post_meta( $post->ID, 'rank_math_description', true ) ) );
+			$robot = get_post_meta( $post->ID, '_yoast_wpseo_meta-robots-noindex', true ) ? 'noindex' : implode( ',', (array) get_post_meta( $post->ID, 'rank_math_robots', true ) );
+		}
+
+		$out = array();
+		if ( '' !== $title ) {
+			$out['seoTitle'] = html_entity_decode( wp_strip_all_tags( $title ), ENT_QUOTES );
+		}
+		if ( '' !== $desc ) {
+			$out['seoDescription'] = html_entity_decode( wp_strip_all_tags( $desc ), ENT_QUOTES );
+		}
+		if ( false !== strpos( $robot, 'noindex' ) ) {
+			$out['noindex'] = true;
+		}
+		if ( $canon && 0 !== strpos( self::rel_url( $canon ), self::permalink( $post ) ) ) {
+			$out['canonical'] = self::rel_url( $canon );
+		}
+		return $out;
+	}
+
+	/* -------------------------------------------------------------- Redirects */
+
+	/** Old permalinks WordPress still redirects (slug changes) → current permalink. */
+	public static function old_slugs( WP_Post $post, string $permalink ): array {
+		$out = array();
+		foreach ( (array) get_post_meta( $post->ID, '_wp_old_slug' ) as $old ) {
+			if ( ! is_string( $old ) || '' === $old || $old === $post->post_name ) {
+				continue;
+			}
+			$clone            = clone $post;
+			$clone->post_name = $old;
+			$path             = self::permalink( $clone );
+			if ( $path !== $permalink ) {
+				$out[ $path ] = $permalink;
+			}
+		}
+		return $out;
+	}
+
+	/**
+	 * Everything the old site answered that the static site would 404 on.
+	 *
+	 * @param array<string,string> $old_slugs old path => new path
+	 * @param string[]             $paths     Permalinks that exist (never redirected away).
+	 * @return array{paths:array<string,string>, query:array<string,string>}
+	 */
+	public static function redirects( array $old_slugs, array $paths, array $site ): array {
+		$exists = array_flip( $paths );
+		$map    = array();
+		foreach ( $old_slugs as $from => $to ) {
+			if ( ! isset( $exists[ $from ] ) ) {
+				$map[ $from ] = $to;
+			}
+		}
+		if ( $site['features']['feeds'] ) {
+			$map['/feed/']          = '/feed.xml';
+			$map['/rss/']           = '/feed.xml';
+			$map['/wp-sitemap.xml'] = '/sitemap.xml';
+			$map['/sitemap_index.xml'] = '/sitemap.xml';
+		}
+
+		// Plain links (?p=123, ?page_id=7) keep working.
+		$query = array();
+		foreach ( self::entry_ids() as $id ) {
+			$post = get_post( $id );
+			$key  = 'page' === $post->post_type ? 'page_id' : 'p';
+			$query[ $key . '=' . $id ] = self::permalink( $post );
+		}
+		if ( $site['features']['search'] ) {
+			$query['s'] = '/search/';
+		}
+		ksort( $map );
+		return array( 'paths' => $map, 'query' => $query );
+	}
+
+	/** Netlify / Cloudflare Pages `_redirects` for the same rules (npm start reads redirects.json). */
+	public static function redirects_file( array $r ): string {
+		$out = "# Generated from WordPress. Same rules as redirects.json.\n";
+		foreach ( $r['paths'] as $from => $to ) {
+			$out .= $from . ' ' . $to . " 301\n";
+		}
+		return $out;
 	}
 
 	public static function frontmatter( array $data ): string {
@@ -343,7 +542,8 @@ class WPTA_Exporter {
 
 	/** Rendered homepage HTML via loopback request ('' if the server can't reach itself). */
 	public static function fetch_home(): string {
-		$res = wp_remote_get( home_url( '/' ), array( 'timeout' => 20, 'sslverify' => false, 'redirection' => 3 ) );
+		// Same rule core uses for loopback requests (cron, site health).
+		$res = wp_remote_get( home_url( '/' ), array( 'timeout' => 20, 'sslverify' => apply_filters( 'https_local_ssl_verify', false ), 'redirection' => 3 ) );
 		if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
 			return '';
 		}

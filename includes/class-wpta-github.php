@@ -24,7 +24,7 @@ class WPTA_GitHub {
 				'Authorization'        => 'Bearer ' . $this->token,
 				'Accept'               => 'application/vnd.github+json',
 				'X-GitHub-Api-Version' => '2022-11-28',
-				'User-Agent'           => 'wp-to-astro',
+				'User-Agent'           => 'wp2astro',
 			),
 		);
 		if ( null !== $body ) {
@@ -55,7 +55,7 @@ class WPTA_GitHub {
 			return $user;
 		}
 		$owner = $user['login'];
-		$repo  = $this->request( 'GET', "/repos/{$owner}/{$name}", null, array( 200, 404 ) );
+		$repo  = $this->request( 'GET', '/repos/' . rawurlencode( $owner ) . '/' . rawurlencode( $name ), null, array( 200, 404 ) );
 		if ( is_wp_error( $repo ) ) {
 			return $repo;
 		}
@@ -82,6 +82,11 @@ class WPTA_GitHub {
 		);
 	}
 
+	/** Git's blob id for these bytes, so unchanged files can be skipped without asking GitHub. */
+	public static function blob_sha( string $contents ): string {
+		return sha1( 'blob ' . strlen( $contents ) . "\0" . $contents );
+	}
+
 	/** @return string|WP_Error Blob SHA. */
 	public function blob( array $r, string $contents ) {
 		$res = $this->request( 'POST', "/repos/{$r['owner']}/{$r['repo']}/git/blobs", array( 'content' => base64_encode( $contents ), 'encoding' => 'base64' ) );
@@ -89,17 +94,44 @@ class WPTA_GitHub {
 	}
 
 	/**
-	 * Commit a full tree (path => blob sha) on top of the branch head.
+	 * Files on the branch head.
 	 *
-	 * @return string|WP_Error Commit URL.
+	 * @return array{head:?string, files:array<string,string>, complete:bool}|WP_Error path => blob sha
 	 */
-	public function commit( array $r, array $blobs, string $message ) {
+	public function remote_files( array $r ) {
 		$base = "/repos/{$r['owner']}/{$r['repo']}";
 		$ref  = $this->request( 'GET', "{$base}/git/ref/heads/{$r['branch']}", null, array( 200, 404, 409 ) );
 		if ( is_wp_error( $ref ) ) {
 			return $ref;
 		}
-		$parent = $ref['object']['sha'] ?? null;
+		$head = $ref['object']['sha'] ?? null;
+		if ( ! $head ) {
+			return array( 'head' => null, 'files' => array(), 'complete' => true );
+		}
+		$commit = $this->request( 'GET', "{$base}/git/commits/{$head}" );
+		if ( is_wp_error( $commit ) ) {
+			return $commit;
+		}
+		$tree = $this->request( 'GET', "{$base}/git/trees/{$commit['tree']['sha']}?recursive=1" );
+		if ( is_wp_error( $tree ) ) {
+			return $tree;
+		}
+		$files = array();
+		foreach ( (array) ( $tree['tree'] ?? array() ) as $e ) {
+			if ( 'blob' === ( $e['type'] ?? '' ) ) {
+				$files[ $e['path'] ] = $e['sha'];
+			}
+		}
+		return array( 'head' => $head, 'files' => $files, 'complete' => empty( $tree['truncated'] ) );
+	}
+
+	/**
+	 * Commit a full tree (path => blob sha) on top of $parent. Paths left out are deleted.
+	 *
+	 * @return array{sha:string, url:string}|WP_Error
+	 */
+	public function commit( array $r, array $blobs, string $message, ?string $parent ) {
+		$base = "/repos/{$r['owner']}/{$r['repo']}";
 
 		$tree = array();
 		foreach ( $blobs as $path => $sha ) {
@@ -123,12 +155,15 @@ class WPTA_GitHub {
 		if ( is_wp_error( $c ) ) {
 			return $c;
 		}
+		// Not forced: if someone pushed since we read the branch, GitHub refuses and the next run picks their commit up.
 		$u = $parent
-			? $this->request( 'PATCH', "{$base}/git/refs/heads/{$r['branch']}", array( 'sha' => $c['sha'], 'force' => true ) )
+			? $this->request( 'PATCH', "{$base}/git/refs/heads/{$r['branch']}", array( 'sha' => $c['sha'], 'force' => false ) )
 			: $this->request( 'POST', "{$base}/git/refs", array( 'ref' => 'refs/heads/' . $r['branch'], 'sha' => $c['sha'] ) );
 		if ( is_wp_error( $u ) ) {
-			return $u;
+			return 422 === ( $u->get_error_data()['status'] ?? 0 )
+				? new WP_Error( 'wpta_github_moved', 'The repo changed while syncing (someone pushed). Run the sync again.' )
+				: $u;
 		}
-		return $r['url'] . '/commit/' . $c['sha'];
+		return array( 'sha' => $c['sha'], 'url' => $r['url'] . '/commit/' . $c['sha'] );
 	}
 }

@@ -32,20 +32,41 @@ const pageTitle = title ? `${title} – ${site.title}` : site.title;
 </html>
 ```
 Hope this helps!'''
+def reply(sysmsg, user, model):
+    open('./dev-out/llm.log','a').write(json.dumps({'model':model,'sys':sysmsg[:40],'len':len(user)})+'\n')
+    if 'Astro components' in sysmsg:
+        open('./dev-out/layout_prompt.txt','w').write(user)
+        return LAYOUT if model!='badmodel' else "<?php get_header(); ?><div><slot /></div>"
+    if 'connectivity' in sysmsg:
+        return 'OK'
+    doc = user.split('DOCUMENT:\n',1)[1]
+    doc = re.sub(r'\\?\[button url="([^"]+)"[^\]]*\\?\](.*?)\\?\[/button\\?\]', r'[\2](\1)', doc)
+    doc = re.sub(r'\\?\[/?(vc_\w+|contact-form-7)[^\]]*\\?\]', '', doc)
+    return '<think>reasoning</think>' + doc
+
 class H(BaseHTTPRequestHandler):
+    def send(self, code, body, ctype='application/json'):
+        b = body.encode() if isinstance(body, str) else json.dumps(body).encode()
+        self.send_response(code); self.send_header('Content-Type', ctype); self.end_headers(); self.wfile.write(b)
+    def do_GET(self):
+        if self.path.endswith('/models'):
+            if 'chatgpt' in self.path: return self.send(200, {'models': [{'slug': 'gpt-test', 'display_name': 'GPT Test', 'visibility': 'list'}, {'slug': 'hidden', 'visibility': 'hide'}]})
+            return self.send(200, {'data': [{'id': 'gemma3'}, {'id': 'free/model', 'pricing': {'prompt': '0', 'completion': '0'}}]})
+        self.send(404, {'error': {'message': 'not found'}})
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
-        sysmsg, user = body['messages'][0]['content'], body['messages'][1]['content']
-        open('./dev-out/llm.log','a').write(json.dumps({'model':body['model'],'auth':self.headers.get('Authorization'),'sys':sysmsg[:40],'len':len(user)})+'\n')
-        if 'Astro components' in sysmsg:
-            out = LAYOUT if body['model']!='badmodel' else "<?php get_header(); ?><div><slot /></div>"
-            open('./dev-out/layout_prompt.txt','w').write(user)
-        else:
-            doc = user.split('DOCUMENT:\n',1)[1]
-            doc = re.sub(r'\\?\[button url="([^"]+)"[^\]]*\\?\](.*?)\\?\[/button\\?\]', r'[\2](\1)', doc)
-            doc = re.sub(r'\\?\[/?(vc_\w+|contact-form-7)[^\]]*\\?\]', '', doc)
-            out = '<think>reasoning</think>' + doc
-        resp = json.dumps({'choices':[{'message':{'role':'assistant','content':out}}]}).encode()
-        self.send_response(200); self.send_header('Content-Type','application/json'); self.end_headers(); self.wfile.write(resp)
+        if self.path.endswith('/chat/completions'):
+            out = reply(body['messages'][0]['content'], body['messages'][1]['content'], body['model'])
+            return self.send(200, {'choices':[{'message':{'role':'assistant','content':out}}]})
+        if self.path.endswith('/messages'):  # Anthropic
+            assert self.headers.get('x-api-key') and self.headers.get('anthropic-version')
+            out = reply(body['system'], body['messages'][0]['content'], body['model'])
+            return self.send(200, {'content': [{'type': 'text', 'text': out}]})
+        if self.path.endswith('/responses'):  # Sign in with ChatGPT: SSE, store=false, stream=true
+            assert body['store'] is False and body['stream'] is True and 'temperature' not in body
+            out = reply(body['instructions'], body['input'][0]['content'], body['model'])
+            ev = [{'type': 'response.created'}] + [{'type': 'response.output_text.delta', 'delta': out[i:i+50]} for i in range(0, len(out), 50)] + [{'type': 'response.completed', 'response': {}}]
+            return self.send(200, ''.join('event: %s\ndata: %s\n\n' % (e['type'], json.dumps(e)) for e in ev), 'text/event-stream')
+        self.send(404, {'error': {'message': 'not found'}})
     def log_message(self,*a): pass
 HTTPServer(('127.0.0.1', 11434), H).serve_forever()

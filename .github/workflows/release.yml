@@ -1,0 +1,34 @@
+# Push a tag like v0.2.0 to publish a release. Installed sites update from the wp2astro.zip asset
+# (see includes/class-wpta-updater.php), so the asset name and the top folder must stay "wp2astro".
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - name: Test
+        run: php tests/run.php
+      - name: Check the tag matches the plugin version
+        run: |
+          version=$(sed -n 's/^ \* Version: *//p' wp2astro.php | tr -d '[:space:]')
+          test "v$version" = "$GITHUB_REF_NAME" || { echo "Tag $GITHUB_REF_NAME but plugin version $version"; exit 1; }
+      - name: Build
+        run: bin/build-zip.sh
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## " v {f=1; next} /^## / {f=0} f' CHANGELOG.md)
+          gh release create "$GITHUB_REF_NAME" build/wp2astro.zip --title "WP2Astro $GITHUB_REF_NAME" --notes "$notes"

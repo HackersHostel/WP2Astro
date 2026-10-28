@@ -1,66 +1,125 @@
-# WP to Astro
+<p align="center"><img src="assets/logo.svg" width="72" alt=""></p>
 
-A WordPress plugin that converts the site it runs on into an Astro project, then pushes it to a new GitHub repo.
+# WP2Astro
 
-- **Same URLs.** Every post, page, category and tag keeps its WordPress permalink.
-- **Same look, mostly.** The theme's CSS, images and fonts are copied, and an AI model rebuilds the header, nav and footer as an Astro layout.
-- **Dead shortcodes fixed.** Leftovers from removed plugins (`[vc_row]`, `[button]`, …) are cleaned up by the model, and every change is listed in `CONVERSION_REPORT.md`.
-- **Any model.** Works with any OpenAI-compatible `/chat/completions` API. The default is **Gemma, running locally with Ollama**; OpenRouter, DeepSeek or anything else also work.
-- **AI is optional.** With no model configured you still get a working Astro site with a default layout.
+**Turn a WordPress site into a fast Astro site — same URLs, same look — push it to GitHub, and keep it in sync.**
+A WordPress plugin by [Hackers Hostel](https://hackershostel.com). Free and open source (GPL-2.0-or-later).
+
+- **Install like any plugin.** No Node, CLI or application passwords on your side: upload the zip, open **WP2Astro**,
+  click **Convert**.
+- **Same URLs.** Every post, page, custom post type entry, category and tag keeps its permalink. Old links still work:
+  changed slugs, `?p=123`, `?page_id=7`, `?s=search` and `/feed/` redirect to the right place.
+- **Same look.** The theme's CSS, images and fonts are copied, and an AI model rebuilds the header, menu and footer as
+  an Astro layout from the rendered homepage.
+- **Bring your own AI — or none.** Free local models (Ollama, LM Studio), your **ChatGPT plan** (Sign in with ChatGPT),
+  **OpenRouter** with one-click connect and in-plugin credit balance, or a Claude, OpenAI or DeepSeek API key. With no
+  AI you still get a working site.
+- **GitHub in one click.** Connect with GitHub's device flow (or a token), and the plugin creates the repo and pushes.
+- **Smart sync.** Re-runs push only changed files, removed posts are removed, and **files you edit in the repo are
+  never overwritten**. Turn on auto-sync and the repo updates a couple of minutes after you publish.
+- **SEO kept.** Titles and descriptions from Yoast SEO, Rank Math or All in One SEO, canonical and Open Graph tags,
+  RSS feed, sitemap, robots.txt.
+- **Search.** Static full-text search with Pagefind.
+- **Finish it with your Claude subscription.** The repo ships an agent kit (`AGENTS.md`, `CLAUDE.md`, Claude Code
+  skills) so Claude Code or Codex can polish what the conversion couldn't.
+
+## WP2Astro vs. WP Astro MCP
+
+[WP Astro MCP](https://github.com/vapvarun/wp-astro-mcp) is an MCP server you run from Claude Code. WP2Astro runs inside
+WordPress. Both are open source; pick what fits.
+
+| | WP2Astro | WP Astro MCP |
+|---|---|---|
+| Setup | Install a plugin | Clone, build, configure an MCP server; WordPress application password |
+| Who can run it | Anyone with wp-admin | Developers with Node.js 20+ and Claude Code |
+| AI | Optional: local (free), ChatGPT plan, OpenRouter, Claude/OpenAI/DeepSeek keys | Claude Code session |
+| Keeps the theme's look | Yes (theme CSS + AI-built layout) | Uses its own Astro templates |
+| Shortcodes | Rendered by WordPress itself; dead ones cleaned by AI | Rule-based handling |
+| Old URLs, `?p=`, changed slugs | Yes | Redirect files for several hosts |
+| SEO plugins, feeds, sitemap, search | Yes | Yes (plus JSON Feed) |
+| Custom post types | Yes | Yes (plus ACF fields) |
+| Sync | Changed files only, keeps edits made in the repo, auto-sync on publish | Incremental, scheduled or webhooks |
+| Credentials | Encrypted in the database | Plain text config file |
+| Scale | One site per install | Built for networks of many sites |
 
 ## Install
 
-1. Copy this folder to `wp-content/plugins/wp-to-astro` (or upload the zip in **Plugins → Add New**).
-2. Activate it and open **Tools → WP to Astro**.
+1. Download `wp2astro.zip` from the [latest release](https://github.com/HackersHostel/wp2astro/releases/latest).
+2. In WordPress: **Plugins → Add New → Upload Plugin**, choose the zip, **Activate**.
+3. Open **WP2Astro** in the admin menu.
 
-Requires WordPress 6.5+ and PHP 8.0+. No Composer dependencies.
+Requires WordPress 6.5+ and PHP 8.0+. Updates arrive in **Dashboard → Updates** like any other plugin, from this repo's
+releases.
 
-## Pick a model
+## Use it
 
-| Provider | Base URL | Model |
-|---|---|---|
-| Ollama (local, default) | `http://localhost:11434/v1` | `gemma3` (run `ollama pull gemma3` first) |
-| OpenRouter | `https://openrouter.ai/api/v1` | any model ID, e.g. `google/gemma-3-27b-it` |
-| DeepSeek | `https://api.deepseek.com` | a model ID from DeepSeek's docs |
-| Custom | any OpenAI-compatible URL | — |
+1. **AI model** (optional) — pick one:
+   - **Free:** Ollama (default, runs Gemma and other open models) or LM Studio. WordPress must be able to reach the
+     server. Or **No AI**.
+   - **Your subscription:** *ChatGPT plan* — click **Sign in with ChatGPT**, approve, paste back the address the tab
+     lands on. Claude subscriptions can't be used inside other apps; use the agent kit with Claude Code instead.
+   - **Pay as you go:** *OpenRouter* — **Connect OpenRouter**, pick a model (free ones are marked), see your balance and
+     **Buy credits** from the dashboard.
+   - **API key:** Claude, OpenAI, DeepSeek or any OpenAI-compatible endpoint.
+2. **GitHub** (optional) — **Connect GitHub**, or paste a fine-grained token with *Administration* and *Contents*
+   read & write. Without GitHub you download a zip.
+3. **What to build** — SEO, feeds, search, custom post types, agent kit, auto-sync.
+4. **Convert to Astro.** Later runs become **Sync now**.
 
-With Ollama, your content never leaves your machine. WordPress has to be able to reach Ollama, so run both on the same machine (Local, wp-env, Docker) or point the Base URL at the Ollama host.
+From the command line (and for coding agents):
 
-## Connect GitHub (optional)
-
-Create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new) with **Administration** and **Contents** set to read & write, and paste it into the settings. The plugin creates the repo, private by default, and pushes everything as one commit. Running it again adds a new commit to the same repo.
-
-Without a token you get a `.zip` download instead.
+```bash
+wp wp2astro convert                 # convert + push
+wp wp2astro convert --no-ai --no-github --zip=./site.zip
+wp wp2astro status                  # provider, GitHub, recent runs
+```
 
 ## What you get
 
 ```
-src/content/posts/*.md   posts as Markdown with frontmatter
-src/content/pages/*.md   pages
-src/site.json            title, menu, categories, tags, stylesheets
-src/layouts/             BaseLayout (AI or default) + PostLayout
-src/pages/               home, catch-all for permalinks, pagination, archives, 404
-public/theme/            the old theme's CSS, images and fonts
-public/wp-content/uploads/  media that the content references
-server.mjs               zero-dependency static server (`npm start`)
+src/content/posts|pages|items/   Markdown with frontmatter (items = custom post types)
+src/site.json                    title, menu, terms, archives, feature flags
+src/layouts/BaseLayout.astro     the theme shell (AI-built or default)
+src/components/SeoHead.astro     title, description, canonical, Open Graph
+src/pages/                       permalinks, archives, pagination, feed.xml, sitemap.xml, robots.txt, search
+public/theme/                    the old theme's CSS, images, fonts
+public/wp-content/uploads/       referenced media at their original paths
+redirects.json, public/_redirects  old WordPress URLs → new ones
+server.mjs                       zero-dependency server for `npm start` (with real 301s)
+AGENTS.md, CLAUDE.md, .claude/   agent kit
+CONVERSION_REPORT.md             anything that needs a look
 ```
 
-## Host it: FlyWP + DigitalOcean
+## Deploy
 
-1. In [FlyWP](https://flywp.com), connect DigitalOcean and create a server.
-2. Add a [Node.js site](https://flywp.com/features/nodejs-deployments/) from the GitHub repo.
-3. Build: `npm install && npm run build` · Start: `npm start`.
+- **FlyWP + DigitalOcean:** add a Node.js site from the repo; build `npm install && npm run build`, start `npm start`.
+  FlyWP's free plan covers one server and one site; the DigitalOcean droplet is paid.
+- **Any static host:** build `npm run build`, publish `dist/`. Netlify and Cloudflare Pages read `public/_redirects`.
 
-FlyWP's free plan covers one server and one site. The droplet is billed by DigitalOcean.
+## Privacy
 
-## How it works
+WP2Astro only talks to services you set up, and only when you convert, sync or test a connection. See
+[docs/privacy.md](docs/privacy.md) for exactly what is sent where.
 
-The conversion runs as short AJAX steps (`init → content → media → ai_layout → ai_cleanup → package → github`), so it doesn't hit PHP time limits. The AI steps are single-shot prompts with strict validation and a fallback, with no tool calling, so small local models work. See [`PRD.md`](PRD.md) for the full spec.
+## Docs
+
+- [AI providers](docs/providers.md) — every option, including how Sign in with ChatGPT works on a remote server
+- [GitHub](docs/github.md) — connecting, permissions, and registering the OAuth app (maintainers)
+- [Sync](docs/sync.md) — what gets pushed, what is kept, auto-sync
+- [White-label](docs/white-label.md) — shipping WP2Astro under your brand
+- [Privacy and external services](docs/privacy.md)
+- [Releasing](docs/releasing.md)
 
 ## Not converted
 
-Comments, forms, search, WooCommerce and other features that need a server.
+Comments, forms, WooCommerce and other features that need a server; sidebar widgets; ACF fields beyond the rendered
+content.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Security problems: [SECURITY.md](SECURITY.md). Help: [SUPPORT.md](SUPPORT.md).
 
 ## License
 
-GPL-2.0-or-later
+[GPL-2.0-or-later](LICENSE). Free to use. A white-label licence from Hackers Hostel covers shipping it under your own
+brand — see [docs/white-label.md](docs/white-label.md).

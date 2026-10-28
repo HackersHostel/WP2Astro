@@ -1,0 +1,34 @@
+# Lint every PHP file and run the unit tests on the oldest and newest supported PHP versions and those between.
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ["8.0", "8.1", "8.2", "8.3", "8.4", "8.5"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+      - name: Lint
+        run: find . -name '*.php' -not -path './dev/*' -print0 | xargs -0 -n1 php -l
+      - name: Unit tests
+        run: php tests/run.php
+      - name: Release zip builds
+        run: bin/build-zip.sh

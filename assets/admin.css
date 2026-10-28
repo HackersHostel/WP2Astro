@@ -1,8 +1,74 @@
-.wpta-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
-.wpta-card { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 4px 20px 16px; }
-.wpta-card .form-table th { width: 140px; }
+.wpta { --wpta-accent: #ff5d01; --wpta-ink: #1d2327; --wpta-line: #dcdcde; --wpta-soft: #f6f7f7; --wpta-good: #00a32a; --wpta-bad: #d63638; max-width: 1400px; }
+.wpta-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 16px 0 8px; }
+.wpta-head h1 { padding: 0; margin: 0; font-size: 23px; line-height: 1.2; }
+.wpta-head p { margin: 2px 0 0; color: #50575e; }
+.wpta-head img { border-radius: 10px; }
+.wpta-pills { display: flex; gap: 8px; margin: 0 0 0 auto; flex-wrap: wrap; }
+.wpta-pills li { margin: 0; }
+.wpta-pills a { display: inline-block; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--wpta-line); background: #fff; text-decoration: none; color: var(--wpta-ink); font-size: 12px; }
+.wpta-pills .ok a { border-color: #b8e6bf; background: #edfaef; }
+.wpta-pills .todo a { border-color: #f5e6ab; background: #fcf9e8; }
+
+.wpta-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 20px; align-items: start; margin-top: 12px; }
+.wpta-col { display: grid; gap: 20px; min-width: 0; }
+.wpta-card { background: #fff; border: 1px solid var(--wpta-line); border-radius: 8px; padding: 6px 22px 14px; scroll-margin-top: 48px; }
+.wpta-card h2 { display: flex; align-items: center; gap: 10px; font-size: 16px; }
+.wpta-card h3 { font-size: 13px; margin: 18px 0 6px; }
+.wpta-step { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--wpta-ink); color: #fff; font-size: 12px; }
+.wpta-lead { margin-top: -6px; color: #50575e; }
 .wpta-muted { color: #646970; font-weight: 400; font-size: 13px; }
-#wpta-log { background: #1d2327; color: #f0f0f1; padding: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 12px; border-radius: 4px; }
+.wpta-card .form-table th { width: 120px; padding-left: 0; }
+.wpta-inline { margin-left: 8px; }
+.wpta-save { margin: 12px 0 4px; }
+
+.wpta-providers { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 8px 0 14px; }
+.wpta-group h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #646970; }
+.wpta-provider { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--wpta-line); border-radius: 6px; cursor: pointer; background: #fff; color: var(--wpta-ink); text-decoration: none; }
+.wpta-provider:hover { border-color: #8c8f94; }
+.wpta-provider:has(input:checked) { border-color: var(--wpta-accent); box-shadow: 0 0 0 1px var(--wpta-accent); background: #fff8f3; }
+.wpta-provider input { margin: 0; }
+.wpta-provider span { display: flex; flex-direction: column; line-height: 1.3; }
+.wpta-provider em { font-style: normal; font-size: 11px; color: #646970; }
+.wpta-provider-info { border-style: dashed; }
+.wpta-panel { border-top: 1px solid var(--wpta-line); padding-top: 4px; }
+
+.wpta-connect { background: var(--wpta-soft); border-radius: 6px; padding: 2px 14px; margin: 10px 0; }
+.wpta-connected { font-weight: 600; color: var(--wpta-good); }
+.wpta-connected .wpta-balance { color: var(--wpta-ink); }
+.wpta-code code { font-size: 22px; letter-spacing: .12em; padding: 6px 12px; background: #fff; border: 1px solid var(--wpta-line); border-radius: 4px; }
+.wpta-cg-paste ol { margin-left: 18px; }
+.wpta-cg-paste input { margin-bottom: 6px; }
+.wpta-connect details { margin: 10px 0; }
+.wpta-connect summary { cursor: pointer; color: #2271b1; }
+
+.wpta-checks { margin: 14px 0 0; border: 0; padding: 0; }
+.wpta-checks legend { font-weight: 600; margin-bottom: 6px; }
+.wpta-checks label { display: block; margin: 0 0 8px; }
+
+.wpta-msg { margin: 6px 0 0; min-height: 1em; }
+.is-ok { color: var(--wpta-good); }
+.is-bad { color: var(--wpta-bad); }
+.wpta-good { color: var(--wpta-good); font-weight: 600; }
+.wpta-bad { color: var(--wpta-bad); font-weight: 600; }
+
+.wpta-run .button-hero { width: 100%; text-align: center; }
+.wpta-summary { margin: 0 0 12px; display: grid; gap: 6px; }
+.wpta-summary li { display: flex; justify-content: space-between; gap: 12px; margin: 0; padding: 6px 0; border-bottom: 1px solid var(--wpta-soft); }
+.wpta-summary span { color: #646970; }
+.wpta-summary strong { text-align: right; overflow-wrap: anywhere; }
+.wpta-progress { margin: 6px 0 10px; }
+.wpta-bar { height: 8px; background: var(--wpta-soft); border-radius: 999px; overflow: hidden; }
+.wpta-bar span { display: block; height: 100%; width: 0; background: var(--wpta-accent); transition: width .3s ease; }
+.wpta-phase { margin: 6px 0 0; color: #50575e; }
 #wpta-result { margin: 12px 0; }
-#wpta-result .button { margin-right: 8px; }
+#wpta-result .button { margin: 0 8px 8px 0; }
+.wpta-logbox summary { cursor: pointer; color: #2271b1; margin: 8px 0; }
+#wpta-log { background: var(--wpta-ink); color: #f0f0f1; padding: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 12px; border-radius: 6px; margin: 0; }
+
+.wpta-runs td { vertical-align: top; }
+.wpta-links { white-space: nowrap; text-align: right; }
+.wpta-cmd { background: var(--wpta-soft); padding: 10px 12px; border-radius: 6px; font-size: 12px; }
+.wpta-foot { margin: 24px 0 8px; color: #646970; }
+
 @media (max-width: 1100px) { .wpta-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .wpta-card { padding: 4px 14px 12px; } .wpta-pills { margin-left: 0; } }
