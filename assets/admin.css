@@ -1,4 +1,5 @@
 .wpta { --wpta-accent: #ff5d01; --wpta-ink: #1d2327; --wpta-line: #dcdcde; --wpta-soft: #f6f7f7; --wpta-good: #00a32a; --wpta-bad: #d63638; max-width: 1400px; }
+.wpta [hidden] { display: none !important; } /* WP's .button sets display and would beat the attribute */
 .wpta-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 16px 0 8px; }
 .wpta-head h1 { padding: 0; margin: 0; font-size: 23px; line-height: 1.2; }
 .wpta-head p { margin: 2px 0 0; color: #50575e; }
