@@ -1,7 +1,7 @@
 # Drives the real wp-admin UI endpoints: saves settings through the form, checks the model endpoints,
 # runs a conversion through the AJAX steps and downloads the zip to dev-out/out.zip.
 #   python3 dev/drive.py [provider] [model] [--noai] [--nogh] [--norun]
-# provider: openrouter (default) | chatgpt | none. The test site's mu-plugin dev/test-llm.php points them at the
+# provider: openrouter (default) | local | chatgpt | none. The test site's mu-plugin dev/test-llm.php points them at the
 # mock on :11434. --norun only saves settings and checks Load models / Test.
 # Never point this at a real site: it overwrites the plugin settings.
 import urllib.request, urllib.parse, http.cookiejar, re, json, sys
@@ -9,7 +9,7 @@ B = 'http://localhost:8899'
 args = [a for a in sys.argv[1:] if not a.startswith('--')]
 flags = [a for a in sys.argv[1:] if a.startswith('--')]
 provider = args[0] if args else 'openrouter'
-model = args[1] if len(args) > 1 else {'openrouter': 'anthropic/claude-haiku-5.5', 'chatgpt': 'gpt-test'}.get(provider, '')
+model = args[1] if len(args) > 1 else {'openrouter': 'google/gemma-4-31b-it', 'local': 'gemma4', 'chatgpt': 'gpt-test'}.get(provider, '')
 
 cj = http.cookiejar.CookieJar(); op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
 def req(path, data=None):

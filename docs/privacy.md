@@ -13,6 +13,7 @@ when a request is added or changed.
 | Service | When | What is sent | Terms / privacy |
 |---|---|---|---|
 | Your own site (loopback) | Every conversion and sync | A GET request for the homepage, to read the theme's rendered HTML. It stays on your server. | — |
+| Your own model server (**Local model**) | AI steps, **Test**, **Load models** | The AI prompts below, sent only to the **Server URL** you entered | — |
 | OpenAI — Sign in with ChatGPT (`auth.openai.com`, `api.openai.com`) | Sign-in, token refresh, sign-out; AI steps, **Test**, **Load models** | OAuth codes and tokens; the homepage HTML trimmed to header, menu and footer (no scripts or styles) and the menu; the full Markdown of posts that contain dead shortcodes | [Terms](https://openai.com/policies/terms-of-use), [Privacy](https://openai.com/policies/privacy-policy) |
 | OpenRouter (`openrouter.ai`) and the model provider it routes to | **Connect OpenRouter**, balance; AI steps, **Test**, **Load models** | OAuth code exchange; API key; your site's address (as the app referrer); the same prompts | [Terms](https://openrouter.ai/terms), [Privacy](https://openrouter.ai/privacy) |
 | GitHub (`github.com`, `api.github.com`) | **Connect GitHub**, **Check repo**, saving a token, conversions and syncs | Device-flow codes; token; every file of the generated site (posts, pages, media, theme assets) | [Terms](https://docs.github.com/site-policy/github-terms/github-terms-of-service), [Privacy](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement) |

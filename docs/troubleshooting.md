@@ -37,6 +37,20 @@ isn't retried.
 - Or keep the default layout and finish it with `/wp2astro-polish-layout` in Claude Code. See
   [Finish the site with Claude Code](claude-code.md).
 
+## Load models can't reach the local model server
+
+**What you see:** an error after **Load models** or **Test** with **Local model** selected, ending in "Is the model
+server running, and can this WordPress server reach …?"
+
+**Why:** the request comes from your WordPress server, not your browser. `localhost` means the WordPress server itself.
+
+**What to do:**
+
+1. Check that the model server is running (for Ollama, `ollama list`).
+2. If it runs on another machine, enter that machine's address in **Server URL** and make the server listen on your
+   network (for Ollama, `OLLAMA_HOST=0.0.0.0`).
+3. Click **Load models** again. See [Run a local model](local-models.md).
+
 ## OpenRouter doesn't bring you back
 
 **What you see:** after **Connect OpenRouter**, you stay on openrouter.ai, land on an error page, or see "OpenRouter
@@ -72,6 +86,17 @@ Related messages:
 it stopped instead of overwriting their commit.
 
 **What to do:** click **Sync now**. The new sync builds on their commit and keeps their changes.
+
+## A sync stopped because GitHub listed only part of the repository
+
+**What you see:** "GitHub returned only part of the file list for this repo (it has too many files), so a sync could
+delete files. Sync stopped; nothing was changed."
+
+**Why:** for very large repositories, GitHub shortens the file list it returns. Syncing with a partial list could
+remove files from the repository, so WP2Astro stops instead.
+
+**What to do:** remove files the site doesn't need from the repository (large media, for example), or sync to a new,
+empty repository by changing **Repository** in the **GitHub** card.
 
 ## Another conversion is running
 

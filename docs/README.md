@@ -9,12 +9,13 @@ Inside WordPress, click **Help** in the top-right corner of the **WP2Astro** scr
 
 - [Getting started](getting-started.md) — install, convert, and download the zip or open the repository
 - [Choose an AI model](providers.md) — what AI does and how the options compare
+  - [Run a local model](local-models.md) — Gemma, Llama or Qwen on Ollama, LM Studio, llama.cpp or vLLM
   - [Use your ChatGPT plan](chatgpt.md) — Sign in with ChatGPT, the 127.0.0.1 step, usage limits
   - [Use OpenRouter](openrouter.md) — connect, pick a model, free models, **Buy credits**, balance
   - [Finish the site with Claude Code](claude-code.md) — the agent kit and the `/wp2astro-*` skills
 - [Connect GitHub](github.md) — one-click connect, fine-grained tokens, private repositories
 - [Keep the site in sync](sync.md) — what is pushed, what is kept, auto-sync
-- [Deploy the site](deploy.md) — FlyWP and DigitalOcean, or any static host
+- [Deploy the site](deploy.md) — FlyWP and DigitalOcean, Render, or any static host
 - [Troubleshooting](troubleshooting.md) — fixes for the messages you are most likely to see
 - [Privacy and external services](privacy.md) — what is sent where, and when
 

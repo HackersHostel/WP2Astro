@@ -53,7 +53,7 @@ Shows the AI provider, the GitHub connection, whether auto-sync is on, and recen
 ### Examples
 
     $ wp wp2astro status
-    AI:      anthropic/claude-haiku-5.5 (OpenRouter)
+    AI:      google/gemma-4-31b-it (OpenRouter)
     GitHub:  your-name/your-site-astro
     Auto-sync: on
     +------------------+---------+--------+---------+---------+------------------------------------------------+

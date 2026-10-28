@@ -5,7 +5,7 @@ WordPress links with real redirects, or as plain static files on any static host
 
 | | Node.js app (`npm start`) | Static host (`dist/`) |
 |---|---|---|
-| Hosts | FlyWP + DigitalOcean, any VPS, Render, Railway… | Netlify, Cloudflare Pages, GitHub Pages, any web server… |
+| Hosts | FlyWP + DigitalOcean, Render, any VPS, Railway… | Netlify, Cloudflare Pages, GitHub Pages, any web server… |
 | Changed slugs | 301 redirects | 301 on Netlify and Cloudflare Pages (`public/_redirects`); redirect pages elsewhere |
 | `/feed/`, `/wp-sitemap.xml` | 301 redirects | 301 on Netlify and Cloudflare Pages; not redirected elsewhere |
 | `?p=123`, `?page_id=7`, `?s=…` | 301 redirects | Not redirected |
@@ -36,6 +36,29 @@ site; DigitalOcean bills the server (droplet).
 
 `npm start` runs `server.mjs`, a small server with no dependencies. It serves `dist/` and answers every old WordPress
 URL listed in `redirects.json` with a 301 redirect. It listens on the port in the `PORT` environment variable, or 4321.
+
+## Deploy with Render
+
+[Render](https://render.com) runs the site as a Node.js web service and rebuilds it on every push.
+
+1. In Render, click **New** → **Web Service** and connect your WP2Astro repository on GitHub.
+2. Set **Runtime** to **Node**.
+3. Set the build command to:
+
+   ```bash
+   npm install && npm run build
+   ```
+
+4. Set the start command to:
+
+   ```bash
+   npm start
+   ```
+
+5. Create the service.
+
+Render sets the `PORT` environment variable, and `server.mjs` listens on it. Render picks the Node.js version from
+`engines` in `package.json`; to use a specific version, set the `NODE_VERSION` environment variable (22.23.4 or later).
 
 ## Deploy to a static host
 

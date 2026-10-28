@@ -212,7 +212,7 @@
   const phase = $('.wpta-phase');
   const phases = {
     init: 'Reading the theme and settings', content: 'Converting content to Markdown', media: 'Copying media',
-    ai_layout: 'Rebuilding the layout with AI', ai_cleanup: 'Cleaning up dead shortcodes',
+    ai_layout: 'Rebuilding the layout with AI (can take a few minutes on local models)', ai_cleanup: 'Cleaning up dead shortcodes',
     package: 'Packaging the project', github: 'Comparing with GitHub', github_upload: 'Uploading changed files',
     github_commit: 'Committing', done: 'Done', error: 'Stopped',
   };

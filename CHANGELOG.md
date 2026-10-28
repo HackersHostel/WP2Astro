@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Local model** provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio,
+  llama.cpp, vLLM) through any OpenAI-compatible **Server URL**.
+- OpenRouter's default model is now the open `google/gemma-4-31b-it` (was `anthropic/claude-haiku-5.5`).
+- Fixed: posts, pages and terms with non-ASCII slugs (`café`, `日本`) broke `npm run build`. Their paths are now
+  decoded, and `npm start` no longer crashes when it redirects to such a path.
+- Fixed: shortcodes that print output instead of returning it no longer break the conversion step.
+- A sync now stops, without changing anything, when GitHub returns only part of a large repository's file list,
+  instead of risking deleting files.
+- AI cache entries unused for 30 days are removed.
+- Settings are read and decrypted once per request.
+- Docs: [Run a local model](docs/local-models.md), and deploying to Render.
+
 - Help tabs on the WP2Astro screen (Overview, AI model, GitHub, Sync, Troubleshooting) and a Help sidebar with links
   to the documentation, Q&A, issues and the changelog. Field descriptions link to the matching guide.
 - `readme.txt` in WordPress.org format, and plugin directory icons and banners in `.wordpress-org/`. **View details**

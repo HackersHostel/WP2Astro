@@ -13,23 +13,38 @@ class WPTA_Settings {
 	/** Fields in `keys` and these top-level fields are stored encrypted. */
 	const SECRETS = array( 'github_token' );
 
+	/** Decrypted settings for this request; cleared by update(). */
+	private static ?array $cache = null;
+
 	/**
 	 * Model providers.
 	 * kind: openai (OpenAI-compatible /chat/completions) or chatgpt (Sign in with ChatGPT, Responses API).
-	 * group: plan (the user's subscription) | credits (pay as you go) | off.
+	 * group: local (a model server the user runs) | plan (the user's subscription) | credits (pay as you go) | off.
+	 * server: the user sets the base URL.
 	 * Claude subscriptions can't be used from other apps; the generated repo's agent kit covers them through Claude Code.
 	 */
 	public static function providers(): array {
 		return array(
+			'local'      => array(
+				'label'    => 'Local model',
+				'group'    => 'local',
+				'kind'     => 'openai',
+				'base_url' => 'http://localhost:11434/v1',
+				'model'    => 'gemma4',
+				'key'      => false,
+				'server'   => true,
+				'note'     => 'Free. Open models such as Gemma, Llama or Qwen on a server you run (Ollama, LM Studio, llama.cpp, vLLM); your content stays on your servers.',
+				'help'     => 'https://ollama.com/library/gemma4',
+			),
 			'openrouter' => array(
 				'label'    => 'OpenRouter',
 				'group'    => 'credits',
 				'kind'     => 'openai',
 				'base_url' => 'https://openrouter.ai/api/v1',
-				'model'    => 'anthropic/claude-haiku-5.5',
+				'model'    => 'google/gemma-4-31b-it',
 				'key'      => true,
 				'connect'  => 'openrouter',
-				'note'     => 'Claude, GPT and hundreds of other models with one account. Pay as you go with credits, or use openrouter/free for free models.',
+				'note'     => 'Open models such as Gemma, Llama and Qwen, plus Claude, GPT and hundreds more with one account. Pay as you go with credits, or use openrouter/free for free models.',
 				'help'     => 'https://openrouter.ai/models',
 			),
 			'chatgpt'    => array(
@@ -60,6 +75,7 @@ class WPTA_Settings {
 		return array(
 			'provider'     => 'openrouter',
 			'models'       => array(),
+			'base_urls'    => array(),
 			'keys'         => array(),
 			'ai_layout'    => 1,
 			'ai_cleanup'   => 1,
@@ -79,6 +95,9 @@ class WPTA_Settings {
 
 	/** Decrypted settings. */
 	public static function get(): array {
+		if ( null !== self::$cache ) {
+			return self::$cache;
+		}
 		$saved = get_option( self::OPTION, array() );
 		$s     = array_merge( self::defaults(), is_array( $saved ) ? $saved : array() );
 		foreach ( self::SECRETS as $f ) {
@@ -89,13 +108,15 @@ class WPTA_Settings {
 		if ( ! empty( $s['api_key'] ) && empty( $s['keys'][ $s['provider'] ] ) ) {
 			$s['keys'][ $s['provider'] ] = (string) $s['api_key'];
 		}
+		self::$cache = $s;
 		return $s;
 	}
 
 	/** Merge $changes into the stored settings (plain values in, encrypted at rest). */
 	public static function update( array $changes ): void {
 		$s = array_merge( self::get(), $changes );
-		unset( $s['api_key'], $s['base_url'], $s['model'], $s['base_urls'] ); // Fields of earlier versions.
+		self::$cache = null;
+		unset( $s['api_key'], $s['base_url'], $s['model'] ); // Fields of earlier versions.
 		foreach ( self::SECRETS as $f ) {
 			$s[ $f ] = WPTA_Secrets::seal( (string) $s[ $f ] );
 		}
@@ -118,9 +139,10 @@ class WPTA_Settings {
 		$all = self::providers();
 		$p   = $all[ $id ] ?? $all['none'];
 
-		$p['id']      = isset( $all[ $id ] ) ? $id : 'none';
-		$p['model']   = trim( (string) ( $s['models'][ $id ] ?? '' ) ) ?: $p['model'];
-		$p['api_key'] = (string) ( $s['keys'][ $id ] ?? '' );
+		$p['id']       = isset( $all[ $id ] ) ? $id : 'none';
+		$p['base_url'] = rtrim( ( empty( $p['server'] ) ? '' : trim( (string) ( $s['base_urls'][ $id ] ?? '' ) ) ) ?: $p['base_url'], '/' );
+		$p['model']    = trim( (string) ( $s['models'][ $id ] ?? '' ) ) ?: $p['model'];
+		$p['api_key']  = (string) ( $s['keys'][ $id ] ?? '' );
 
 		/**
 		 * Filters a resolved AI provider before it is used.
@@ -133,13 +155,14 @@ class WPTA_Settings {
 		 * @param array $p {
 		 *     The provider definition from WPTA_Settings::providers(), resolved with the saved settings.
 		 *
-		 *     @type string $id       Provider ID: 'openrouter', 'chatgpt' or 'none'.
+		 *     @type string $id       Provider ID: 'local', 'openrouter', 'chatgpt' or 'none'.
 		 *     @type string $label    Name shown in the dashboard.
-		 *     @type string $group    'plan', 'credits' or 'off'.
+		 *     @type string $group    'local', 'plan', 'credits' or 'off'.
 		 *     @type string $kind     Wire format: 'openai' (/chat/completions), 'chatgpt' (/responses) or 'none'.
 		 *     @type string $base_url API base URL, without a trailing slash.
 		 *     @type string $model    Model ID in use.
 		 *     @type bool   $key      Whether the provider needs an API key.
+		 *     @type bool   $server   Whether the user sets the base URL (local model servers). Optional.
 		 *     @type string $api_key  The decrypted API key, or ''.
 		 * }
 		 */
@@ -174,6 +197,12 @@ class WPTA_Settings {
 		foreach ( (array) ( $in['models'] ?? array() ) as $id => $model ) {
 			if ( isset( $providers[ $id ] ) ) {
 				$out['models'][ $id ] = sanitize_text_field( wp_unslash( $model ) );
+			}
+		}
+		$out['base_urls'] = $old['base_urls'];
+		foreach ( (array) ( $in['base_urls'] ?? array() ) as $id => $url ) {
+			if ( ! empty( $providers[ $id ]['server'] ) ) {
+				$out['base_urls'][ $id ] = esc_url_raw( trim( wp_unslash( $url ) ) );
 			}
 		}
 		$out['keys'] = $old['keys'];

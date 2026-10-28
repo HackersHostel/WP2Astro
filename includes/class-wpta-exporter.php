@@ -39,6 +39,20 @@ class WPTA_Exporter {
 		return '' === $r ? '/' : $r;
 	}
 
+	/**
+	 * Decode the non-ASCII part of a root-relative path ("/caf%c3%a9/" → "/café/"). WordPress stores UTF-8 slugs
+	 * percent-encoded, but Astro routes and server.mjs match decoded paths. Encoded ASCII (%2F, %3F, %20…) and the
+	 * query string are left alone. Pure (unit-tested).
+	 */
+	public static function decode_path( string $url ): string {
+		if ( '' === $url || '/' !== $url[0] || 0 === strpos( $url, '//' ) ) {
+			return $url;
+		}
+		$cut  = strcspn( $url, '?#' );
+		$path = preg_replace_callback( '/(?:%[89a-f][0-9a-f])+/i', fn( $m ) => rawurldecode( $m[0] ), substr( $url, 0, $cut ) );
+		return mb_check_encoding( $path, 'UTF-8' ) ? $path . substr( $url, $cut ) : $url;
+	}
+
 	/** Permalink path usable as a static route ("/2010/05/hello/"). */
 	public static function permalink( WP_Post $post ): string {
 		$path = self::rel_url( get_permalink( $post ) );
@@ -46,7 +60,7 @@ class WPTA_Exporter {
 			// Plain permalinks (?p=123) can't be static routes.
 			$path = '/' . ( 'page' === $post->post_type ? get_page_uri( $post ) : $post->post_name ) . '/';
 		}
-		$path = '/' . ltrim( $path, '/' );
+		$path = self::decode_path( '/' . ltrim( $path, '/' ) );
 		return str_ends_with( $path, '/' ) || preg_match( '/\.[a-z0-9]{2,5}$/i', $path ) ? $path : $path . '/';
 	}
 
@@ -55,11 +69,11 @@ class WPTA_Exporter {
 	public static function site_data( array $stylesheets ): array {
 		$cats = array();
 		foreach ( get_categories( array( 'hide_empty' => true ) ) as $t ) {
-			$cats[] = array( 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES ), 'path' => self::rel_url( get_term_link( $t ) ) );
+			$cats[] = array( 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES ), 'path' => self::decode_path( self::rel_url( get_term_link( $t ) ) ) );
 		}
 		$tags = array();
 		foreach ( get_tags( array( 'hide_empty' => true ) ) as $t ) {
-			$tags[] = array( 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES ), 'path' => self::rel_url( get_term_link( $t ) ) );
+			$tags[] = array( 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES ), 'path' => self::decode_path( self::rel_url( get_term_link( $t ) ) ) );
 		}
 
 		$static_front = 'page' === get_option( 'show_on_front' ) && (int) get_option( 'page_on_front' ) > 0;
@@ -75,7 +89,7 @@ class WPTA_Exporter {
 			$archives[] = array(
 				'type'  => $type,
 				'label' => html_entity_decode( $obj->labels->name, ENT_QUOTES ),
-				'path'  => $obj->has_archive && $link ? self::rel_url( trailingslashit( $link ) ) : '',
+				'path'  => $obj->has_archive && $link ? self::decode_path( self::rel_url( trailingslashit( $link ) ) ) : '',
 			);
 		}
 
@@ -125,7 +139,7 @@ class WPTA_Exporter {
 		if ( $menu_id ) {
 			foreach ( (array) wp_get_nav_menu_items( $menu_id ) as $item ) {
 				if ( (int) $item->menu_item_parent === 0 ) {
-					$items[] = array( 'label' => html_entity_decode( $item->title, ENT_QUOTES ), 'url' => self::rel_url( $item->url ) );
+					$items[] = array( 'label' => html_entity_decode( $item->title, ENT_QUOTES ), 'url' => self::decode_path( self::rel_url( $item->url ) ) );
 				}
 			}
 		}
@@ -189,7 +203,11 @@ class WPTA_Exporter {
 		$post = get_post( $id );
 		$GLOBALS['post'] = $post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
 		setup_postdata( $post );
+		// Shortcodes that echo instead of returning would corrupt the AJAX step's JSON. WordPress prints that output
+		// before the content, so keep it there.
+		ob_start();
 		$html = apply_filters( 'the_content', $post->post_content );
+		$html = ob_get_clean() . $html;
 		wp_reset_postdata();
 
 		$html  = self::relative( $html );
@@ -341,8 +359,9 @@ class WPTA_Exporter {
 		if ( false !== strpos( $robot, 'noindex' ) ) {
 			$out['noindex'] = true;
 		}
-		if ( $canon && 0 !== strpos( self::rel_url( $canon ), self::permalink( $post ) ) ) {
-			$out['canonical'] = self::rel_url( $canon );
+		$canon = $canon ? self::decode_path( self::rel_url( $canon ) ) : '';
+		if ( $canon && 0 !== strpos( $canon, self::permalink( $post ) ) ) {
+			$out['canonical'] = $canon;
 		}
 		return $out;
 	}
