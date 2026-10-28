@@ -38,6 +38,18 @@ if [ "$wporg" = 1 ]; then
     echo "Update URI header still present in the WordPress.org build" >&2
     exit 1
   fi
+  # The readme's "GitHub releases" external service is the updater removed above: drop that subsection
+  # (up to the next heading) and trailing blank lines.
+  awk 'index($0, "= GitHub releases") == 1 { skip = 1; next }
+       skip && /^=/ { skip = 0 }
+       skip { next }
+       /^$/ { blank++; next }
+       { while (blank > 0) { print ""; blank-- } print }' "$out/wp2astro/readme.txt" > "$out/readme.txt.tmp"
+  mv "$out/readme.txt.tmp" "$out/wp2astro/readme.txt"
+  if grep -q '^= GitHub releases' "$out/wp2astro/readme.txt"; then
+    echo "GitHub releases section still present in the WordPress.org readme.txt" >&2
+    exit 1
+  fi
 fi
 
 (cd "$out" && zip -qr wp2astro.zip wp2astro)

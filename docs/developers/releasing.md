@@ -10,6 +10,7 @@ WP2Astro ships as two builds from the same code. They differ only in how install
 | `includes/class-wpta-updater.php` | Included | **Removed** |
 | `Update URI` plugin header | Included | **Removed** |
 | `wpta_update_repo` filter | Available | Not available |
+| "GitHub releases" in `readme.txt` → External services | Included | **Removed** |
 
 Both builds leave out everything in `.distignore`: `docs/`, `dev/`, `tests/`, `bin/`, `.wordpress-org/`, `README.md`,
 `CHANGELOG.md` and the other repository files. `readme.txt` and `LICENSE` stay in.
@@ -19,8 +20,9 @@ Both builds leave out everything in `.distignore`: `docs/`, `dev/`, `tests/`, `b
 [Guideline 8](https://developer.wordpress.org/plugins/wordpress-org/detailed-plugin-guidelines/#8-plugins-may-not-send-executable-code-via-third-party-systems)
 of the WordPress.org plugin guidelines forbids plugins hosted there from installing or updating code from any server
 other than WordPress.org. The GitHub updater (`includes/class-wpta-updater.php`, registered through the `Update URI`
-header) does exactly that, so `--wporg` deletes the file and the header. `wp2astro.php` only loads the updater when the
-file exists, so nothing else changes.
+header) does exactly that, so `--wporg` deletes the file and the header, and drops the matching "GitHub releases"
+subsection from the copy of `readme.txt` in the build. `wp2astro.php` only loads the updater when the file exists, so
+nothing else changes.
 
 Never submit or commit to the WordPress.org SVN repository from a plain `bin/build-zip.sh` build.
 

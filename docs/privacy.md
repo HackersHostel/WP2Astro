@@ -18,7 +18,8 @@ when a request is added or changed.
 | GitHub (`github.com`, `api.github.com`) | **Connect GitHub**, **Check repo**, saving a token, conversions and syncs | Device-flow codes; token; every file of the generated site (posts, pages, media, theme assets) | [Terms](https://docs.github.com/site-policy/github-terms/github-terms-of-service), [Privacy](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement) |
 | GitHub releases (`api.github.com`), Hackers Hostel build only | When WordPress checks for plugin updates (the answer is cached for 12 hours) | A request for the latest release of `HackersHostel/wp2astro`; no site data | as above |
 
-The WordPress.org build of WP2Astro doesn't contain the GitHub release updater, so it never makes the last request.
+The WordPress.org build of WP2Astro doesn't contain the GitHub release updater, so it never makes the last request, and
+its `readme.txt` leaves that service out.
 See [Releasing](developers/releasing.md).
 
 ## Suggested text for your privacy policy
