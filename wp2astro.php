@@ -8,7 +8,7 @@
  * Requires PHP:      8.0
  * Author:            Hackers Hostel
  * Author URI:        https://hackershostel.com
- * License:           GPL-2.0-or-later
+ * License:           GPLv2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain:       wp2astro
  * Update URI:        https://github.com/HackersHostel/wp2astro
@@ -35,14 +35,19 @@ require_once WPTA_DIR . 'includes/class-wpta-github.php';
 require_once WPTA_DIR . 'includes/class-wpta-sync.php';
 require_once WPTA_DIR . 'includes/class-wpta-job.php';
 require_once WPTA_DIR . 'includes/class-wpta-admin.php';
-require_once WPTA_DIR . 'includes/class-wpta-updater.php';
+// Updates from GitHub releases. Left out of the WordPress.org build, which WordPress.org updates (guideline 8).
+if ( is_readable( WPTA_DIR . 'includes/class-wpta-updater.php' ) ) {
+	require_once WPTA_DIR . 'includes/class-wpta-updater.php';
+}
 
 add_action( 'plugins_loaded', function () {
 	WPTA_Admin::init();
 	WPTA_Connect::init();
 	WPTA_Job::init();
 	WPTA_Sync::init();
-	WPTA_Updater::init();
+	if ( class_exists( 'WPTA_Updater' ) ) {
+		WPTA_Updater::init();
+	}
 } );
 
 if ( defined( 'WP_CLI' ) && WP_CLI ) {

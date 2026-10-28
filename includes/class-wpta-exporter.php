@@ -153,6 +153,18 @@ class WPTA_Exporter {
 				}
 			}
 		}
+
+		/**
+		 * Filters the post types exported to the Astro site and watched by auto-sync.
+		 *
+		 * Posts go to src/content/posts/, pages to src/content/pages/ and every other type to
+		 * src/content/items/{type}/. Only published, non-password-protected entries are exported.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string[] $types Post type names: 'post', 'page' and, when "Custom post types" is on, every public,
+		 *                        viewable custom post type except commerce and builder internals.
+		 */
 		return array_values( array_unique( (array) apply_filters( 'wpta_post_types', $types ) ) );
 	}
 

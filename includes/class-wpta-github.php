@@ -12,7 +12,17 @@ class WPTA_GitHub {
 
 	public function __construct( string $token ) {
 		$this->token = $token;
-		$this->api   = rtrim( (string) apply_filters( 'wpta_github_api', 'https://api.github.com' ), '/' );
+
+		/**
+		 * Filters the base URL of the GitHub REST API.
+		 *
+		 * Point it at GitHub Enterprise Server (https://github.example.com/api/v3) or a test server.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string $api API base URL. Default 'https://api.github.com'.
+		 */
+		$this->api = rtrim( (string) apply_filters( 'wpta_github_api', 'https://api.github.com' ), '/' );
 	}
 
 	/** @return array|WP_Error Decoded JSON. */

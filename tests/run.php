@@ -10,6 +10,12 @@ define( 'MB_IN_BYTES', 1048576 );
 function wp_strip_all_tags( $s ) {
 	return trim( strip_tags( preg_replace( '#<(script|style)[^>]*?>.*?</\1>#si', '', $s ) ) );
 }
+function esc_html( $s ) {
+	return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
+}
+function esc_url( $s ) {
+	return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
+}
 
 require __DIR__ . '/../includes/class-wpta-sync.php';
 require __DIR__ . '/../includes/class-wpta-ai.php';
@@ -17,6 +23,7 @@ require __DIR__ . '/../includes/class-wpta-llm.php';
 require __DIR__ . '/../includes/class-wpta-github.php';
 require __DIR__ . '/../includes/class-wpta-markdown.php';
 require __DIR__ . '/../includes/class-wpta-exporter.php';
+require __DIR__ . '/../includes/class-wpta-updater.php';
 
 $fails = 0;
 $count = 0;
@@ -124,6 +131,51 @@ check( 'clean keeps markdown fences when strict', WPTA_LLM::clean( "Text\n```js\
 /* ---------------------------------------------------------- Shortcodes */
 
 check( 'dead shortcodes', WPTA_Exporter::dead_shortcodes( '<p>[vc_row][vc_column]Hi[/vc_column][/vc_row] [button url="x"]Go[/button] [not a shortcode]</p><pre>[gallery]</pre>' ), array( 'vc_row', 'vc_column', 'button' ) );
+
+/* ------------------------------------------------------------ readme.txt */
+
+// WordPress.org readme rules (https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/),
+// and readme.txt kept in step with the plugin header and CHANGELOG.md.
+$readme = (string) file_get_contents( __DIR__ . '/../readme.txt' );
+$plugin = (string) file_get_contents( __DIR__ . '/../wp2astro.php' );
+$field  = fn( string $src, string $name ) => preg_match( '/^[ *]*' . preg_quote( $name, '/' ) . ':[ \t]*(.+?)[ \t]*$/m', $src, $m ) ? $m[1] : null;
+preg_match( "/define\( 'WPTA_VERSION', '([^']+)' \);/", $plugin, $m );
+$version = $m[1];
+check( 'readme: name header', (bool) preg_match( '/\A=== WP2Astro ===\n/', $readme ), true );
+check( 'readme: stable tag = plugin version', $field( $readme, 'Stable tag' ), $version );
+check( 'readme: header version = WPTA_VERSION', $field( $plugin, 'Version' ), $version );
+foreach ( array( 'Requires at least', 'Requires PHP', 'License', 'License URI' ) as $f ) {
+	check( "readme: {$f} matches the plugin header", $field( $readme, $f ), $field( $plugin, $f ) );
+}
+check( 'readme: Tested up to is a major version', (bool) preg_match( '/^\d+\.\d+$/', (string) $field( $readme, 'Tested up to' ) ), true );
+check( 'readme: contributors set', '' !== trim( (string) $field( $readme, 'Contributors' ) ), true );
+$tags = array_map( 'trim', explode( ',', (string) $field( $readme, 'Tags' ) ) );
+check( 'readme: 1-5 tags', count( $tags ) >= 1 && count( $tags ) <= 5, true );
+preg_match( '/\A(?:.*\n)+?\n(.+)\n\n== Description ==/', $readme, $m );
+$short = $m[1] ?? '';
+check( 'readme: short description <= 150 chars', '' !== $short && mb_strlen( $short ) <= 150, true );
+check( 'readme: short description has no markup', (bool) preg_match( '/[*`\[\]<>#=]/', $short ), false );
+preg_match_all( '/^== (.+) ==$/m', $readme, $m );
+check( 'readme: sections', $m[1], array( 'Description', 'Installation', 'Frequently Asked Questions', 'Screenshots', 'Changelog', 'Upgrade Notice', 'External services' ) );
+check( 'readme: changelog has this version', str_contains( $readme, "== Changelog ==\n\n= {$version} =" ), true );
+check( 'CHANGELOG.md has this version', str_contains( (string) file_get_contents( __DIR__ . '/../CHANGELOG.md' ), "\n## {$version}\n" ), true );
+preg_match( '/== Upgrade Notice ==\n(.*?)(?=\n== |\z)/s', $readme, $m );
+foreach ( preg_split( '/^= .+ =$/m', $m[1] ?? '', -1, PREG_SPLIT_NO_EMPTY ) as $notice ) {
+	check( 'readme: upgrade notice <= 300 chars', mb_strlen( trim( $notice ) ) <= 300, true );
+}
+preg_match( '/== Screenshots ==\n\n(.*?)\n\n==/s', $readme, $m );
+$captions = preg_match_all( '/^\d+\. /m', $m[1] ?? '' );
+$shots    = glob( __DIR__ . '/../.wordpress-org/screenshot-*.png' );
+if ( $shots ) {
+	check( 'readme: a caption for every screenshot', count( $shots ), $captions );
+}
+
+$sections = WPTA_Updater::readme_sections( $readme );
+check( 'details: tabs', array_keys( $sections ), array( 'description', 'installation', 'faq', 'changelog' ) );
+check( 'details: external services in the description', str_contains( $sections['description'], '<h3>External services</h3>' ), true );
+check( 'details: faq questions', substr_count( $sections['faq'], '<h4>' ) >= 6, true );
+$html = WPTA_Updater::readme_sections( "== Description ==\n\nSee [docs](https://x.test/a?b=1&c=2) and `code` **now** <script>.\n\n* one\n  wrapped\n* two\n\n= Q? =\n\n1. a\n2. b\n" )['description'];
+check( 'details: markdown subset', $html, '<p>See <a href="https://x.test/a?b=1&amp;c=2">docs</a> and <code>code</code> <strong>now</strong> &lt;script&gt;.</p><ul><li>one wrapped</li><li>two</li></ul><h4>Q?</h4><ol><li>a</li><li>b</li></ol>' );
 
 echo $fails ? "\n{$fails} of {$count} checks failed.\n" : "All {$count} checks passed.\n";
 exit( $fails ? 1 : 0 );

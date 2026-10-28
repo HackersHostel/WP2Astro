@@ -26,5 +26,9 @@ From the plugin root (`mkdir dev-out` first):
   With a real GitHub connection, use `--nogh` and `wp wp2astro convert --no-github` to avoid pushing. For `chatgpt`, seed
   tokens first (`update_option( 'wpta_chatgpt', … )` with `WPTA_Secrets::seal()`ed tokens and `plan => true`).
 - `node dev/shot.js` — Playwright before/after screenshots (WP on :8899, `npm start` of the output on :4567).
+- `node dev/wporg/assets.js` — renders the WordPress.org icons and banners into `.wordpress-org/` (from
+  `assets/logo.svg` and `dev/wporg/banner.svg`).
+- `node dev/wporg/screenshots.js` — captures `screenshot-1.png` … `screenshot-6.png` for `.wordpress-org/`, in the
+  order of `readme.txt`. Needs the test site, both mocks and one conversion served with `PORT=4567 npm start`.
 
 Don't point `dev/drive.py` at a real site: it overwrites the plugin settings (including tokens).

@@ -197,6 +197,16 @@ class WPTA_Connect {
 
 	public static function github_client_id(): string {
 		$id = defined( 'WP2ASTRO_GITHUB_CLIENT_ID' ) ? WP2ASTRO_GITHUB_CLIENT_ID : self::GITHUB_CLIENT_ID;
+
+		/**
+		 * Filters the client ID of the GitHub OAuth app used by Connect GitHub (device flow).
+		 *
+		 * Return '' to hide Connect GitHub and offer only a personal access token.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param string $id OAuth app client ID. Default the WP2ASTRO_GITHUB_CLIENT_ID constant, else the Hackers Hostel app.
+		 */
 		return (string) apply_filters( 'wpta_github_client_id', $id );
 	}
 

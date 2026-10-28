@@ -27,7 +27,86 @@ class WPTA_Admin {
 	public static function menu(): void {
 		$icon = 'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="black" d="M10 1.5 2.5 18.5h3.2l1.6-3.8h5.4l1.6 3.8h3.2L10 1.5Zm0 6.2 1.8 4.4H8.2L10 7.7Z"/></svg>' );
 		$name = WPTA_Settings::brand()['name'];
-		add_menu_page( $name, $name, 'manage_options', WPTA_Settings::SLUG, array( __CLASS__, 'render' ), $icon, 81 );
+		$hook = add_menu_page( $name, $name, 'manage_options', WPTA_Settings::SLUG, array( __CLASS__, 'render' ), $icon, 81 );
+		add_action( 'load-' . $hook, array( __CLASS__, 'help' ) );
+	}
+
+	/** A page of the documentation, e.g. doc( 'getting-started' ). White-label builds move the base with WP2ASTRO_BRAND_DOCS. */
+	public static function doc( string $page ): string {
+		return untrailingslashit( WPTA_Settings::brand()['docs'] ) . '/' . $page . '.md';
+	}
+
+	private static function doc_link( string $page, string $text ): string {
+		return '<a href="' . esc_url( self::doc( $page ) ) . '" target="_blank" rel="noopener">' . esc_html( $text ) . ' ↗</a>';
+	}
+
+	/** The Help tabs and sidebar of the dashboard screen: a few sentences each, with links to the full pages. */
+	public static function help(): void {
+		$screen = get_current_screen();
+		if ( ! $screen ) {
+			return;
+		}
+		$brand = WPTA_Settings::brand();
+		$name  = esc_html( $brand['name'] );
+		$tabs  = array(
+			'overview'        => array(
+				'Overview',
+				"<p>{$name} turns this site into an Astro project with the same URLs and the same look, pushes it to GitHub and keeps it in sync. Nothing heavy runs on your server.</p>
+				<p>Work through the cards from top to bottom: pick an <strong>AI model</strong> (optional), connect <strong>GitHub</strong> (optional), choose <strong>What to build</strong>, then click <strong>Convert to Astro</strong>. Without GitHub you download a zip.</p>",
+				array( 'getting-started' => 'Getting started' ),
+			),
+			'ai'              => array(
+				'AI model',
+				'<p>AI rebuilds your theme’s header, menu and footer as an Astro layout and replaces shortcodes whose plugins are gone. Without it you still get a working site with a clean default layout.</p>
+				<p><strong>ChatGPT plan</strong> uses your ChatGPT Plus or Pro plan through <strong>Sign in with ChatGPT</strong>. <strong>OpenRouter</strong> is pay as you go, with some free models. A Claude plan works through Claude Code and the agent kit instead.</p>',
+				array( 'providers' => 'Choose an AI model', 'chatgpt' => 'Use your ChatGPT plan', 'openrouter' => 'Use OpenRouter', 'claude-code' => 'Finish the site with Claude Code' ),
+			),
+			'github'          => array(
+				'GitHub',
+				'<p>Click <strong>Connect GitHub</strong>, enter the code at github.com/login/device and approve. Or paste a fine-grained personal access token with <strong>Administration</strong> and <strong>Contents</strong> set to read and write.</p>
+				<p>The repository is created on the first run. It is private unless you clear <strong>Private</strong>. Tokens are stored encrypted.</p>',
+				array( 'github' => 'Connect GitHub' ),
+			),
+			'sync'            => array(
+				'Sync',
+				'<p>After the first run the button becomes <strong>Sync now</strong>. A sync commits only the files that changed, removes entries you deleted or unpublished, and keeps every file someone edited in the repo.</p>
+				<p>Turn on <strong>Sync to GitHub automatically</strong> to sync a couple of minutes after you publish, update or delete a post. <strong>Recent runs</strong> lists the last 20 runs with links to each commit.</p>',
+				array( 'sync' => 'Keep the site in sync', 'deploy' => 'Deploy the site' ),
+			),
+			'troubleshooting' => array(
+				'Troubleshooting',
+				'<p>When a run stops, click <strong>Log</strong> under the progress bar to see the step that failed. <code>CONVERSION_REPORT.md</code> in the repo or zip lists anything that needs a look.</p>
+				<p>Common causes: the server can’t load its own homepage, the AI answer was rejected and the default layout was used, the ChatGPT usage limit is reached, or someone pushed to the repo during a sync. In that last case, run the sync again.</p>',
+				array( 'troubleshooting' => 'Troubleshooting' ),
+			),
+		);
+		foreach ( $tabs as $id => $tab ) {
+			$links = array();
+			foreach ( $tab[2] as $page => $text ) {
+				$links[] = self::doc_link( $page, $text );
+			}
+			$screen->add_help_tab(
+				array(
+					'id'      => 'wpta-' . $id,
+					'title'   => $tab[0],
+					'content' => $tab[1] . '<p>' . implode( ' · ', $links ) . '</p>',
+				)
+			);
+		}
+
+		$side = '<p><strong>For more information:</strong></p>';
+		$side .= '<p><a href="' . esc_url( untrailingslashit( $brand['docs'] ) ) . '" target="_blank" rel="noopener">Documentation</a></p>';
+		if ( ! empty( $brand['forum'] ) ) {
+			$side .= '<p><a href="' . esc_url( $brand['forum'] ) . '" target="_blank" rel="noopener">Ask a question</a></p>';
+		}
+		$side .= '<p><a href="' . esc_url( $brand['support'] ) . '" target="_blank" rel="noopener">Report a problem</a></p>';
+		if ( current_user_can( 'install_plugins' ) ) {
+			// The plugin details modal: readme.txt and the release notes (or WordPress.org's copy).
+			add_thickbox();
+			$details = self_admin_url( 'plugin-install.php?tab=plugin-information&plugin=' . dirname( plugin_basename( WPTA_FILE ) ) . '&section=changelog&TB_iframe=true&width=772&height=550' );
+			$side   .= '<p><a href="' . esc_url( $details ) . '" class="thickbox open-plugin-details-modal">Changelog</a></p>';
+		}
+		$screen->set_help_sidebar( $side );
 	}
 
 	public static function action_links( array $links ): array {
@@ -151,7 +230,7 @@ class WPTA_Admin {
 		?>
 		<section class="wpta-card" id="ai">
 			<h2><span class="wpta-step">1</span> AI model <span class="wpta-muted">optional</span></h2>
-			<p class="wpta-lead">AI rebuilds your theme as an Astro layout and cleans up dead shortcodes. Without it you still get a working site.</p>
+			<p class="wpta-lead">AI rebuilds your theme as an Astro layout and cleans up dead shortcodes. Without it you still get a working site. <?php echo self::doc_link( 'providers', 'Choose an AI model' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 
 			<div class="wpta-providers" role="radiogroup" aria-label="AI provider">
 				<?php foreach ( $groups as $g => $glabel ) : ?>
@@ -225,7 +304,7 @@ class WPTA_Admin {
 				<legend>AI steps</legend>
 				<label><input type="checkbox" name="wpta[ai_layout]" value="1" <?php checked( $s['ai_layout'] ); ?>> Rebuild the theme’s header, menu and footer as an Astro layout</label>
 				<label><input type="checkbox" name="wpta[ai_cleanup]" value="1" <?php checked( $s['ai_cleanup'] ); ?>> Clean up dead shortcodes in posts</label>
-				<p class="description">Results are cached: re-running a sync doesn’t spend credits again unless your theme or those posts change.</p>
+				<p class="description">Results are cached: a sync doesn’t call the model again unless your theme or those posts change.</p>
 			</fieldset>
 			<?php self::save_button( 'ai' ); ?>
 		</section>
@@ -254,10 +333,10 @@ class WPTA_Admin {
 					<button type="button" class="button wpta-balance-refresh">Refresh balance</button>
 					<button type="button" class="button-link wpta-or-connect">Reconnect</button>
 				</p>
-				<p class="description">Credits are bought on OpenRouter (card or crypto) and show up here. Models marked “free” cost nothing.</p>
+				<p class="description">Credits are bought on OpenRouter and show up here. Models marked “free” cost nothing. <?php echo self::doc_link( 'openrouter', 'Credits and free models' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 			<?php else : ?>
 				<p><button type="button" class="button button-primary wpta-or-connect">Connect OpenRouter</button> <span class="wpta-muted">opens openrouter.ai, then comes back here</span></p>
-				<p class="description">No account yet? Create one during connect. Start with <code>openrouter/free</code>, or add a few dollars of credit for Claude — converting a small blog with Claude Haiku costs around a cent.</p>
+				<p class="description">No account yet? Create one during connect. <?php echo self::doc_link( 'openrouter', 'Costs and free models' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -286,7 +365,7 @@ class WPTA_Admin {
 						<button type="button" class="button button-primary wpta-cg-finish">Finish sign-in</button>
 					</p>
 				</div>
-				<p class="description">Requires ChatGPT Plus or Pro. Usage counts toward your plan’s limits; you can cap it per app in ChatGPT settings.</p>
+				<p class="description">Requires ChatGPT Plus or Pro. Usage counts toward your plan’s limits. <?php echo self::doc_link( 'chatgpt', 'How sign-in works' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 			</div>
 		</div>
 		<?php
@@ -298,7 +377,7 @@ class WPTA_Admin {
 		?>
 		<section class="wpta-card" id="github">
 			<h2><span class="wpta-step">2</span> GitHub <span class="wpta-muted">optional</span></h2>
-			<p class="wpta-lead">Push the Astro site to a repo, then deploy it anywhere. Without GitHub you get a zip.</p>
+			<p class="wpta-lead">Push the Astro site to a repo, then deploy it anywhere. Without GitHub you get a zip. <?php echo self::doc_link( 'github', 'Connect GitHub' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 
 			<div class="wpta-connect" data-connect="github">
 				<?php if ( $connected ) : ?>
@@ -323,7 +402,7 @@ class WPTA_Admin {
 						<p>
 							<input type="password" class="regular-text" autocomplete="off" name="wpta[github_token]" value="" placeholder="github_pat_…">
 						</p>
-						<p class="description"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a fine-grained token ↗</a> with <strong>Administration</strong> and <strong>Contents</strong> set to read &amp; write. Stored encrypted.</p>
+						<p class="description"><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a fine-grained token ↗</a> with <strong>Administration</strong> and <strong>Contents</strong> set to read &amp; write. Stored encrypted. <?php echo self::doc_link( 'github', 'Step by step' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 					</details>
 				<?php endif; ?>
 			</div>
@@ -361,7 +440,8 @@ class WPTA_Admin {
 			</fieldset>
 			<fieldset class="wpta-checks">
 				<legend>Keep in sync</legend>
-				<label><input type="checkbox" name="wpta[auto_sync]" value="1" <?php checked( $s['auto_sync'] ); ?> <?php disabled( ! $gh && ! $s['auto_sync'] ); ?>> <strong>Sync to GitHub automatically</strong> <span class="wpta-muted">a couple of minutes after you publish, update or delete a post. Only changed files are pushed; files edited in the repo are kept.</span></label>
+				<label><input type="checkbox" name="wpta[auto_sync]" value="1" <?php checked( $s['auto_sync'] ); ?> <?php disabled( ! $gh && ! $s['auto_sync'] ); ?>> <strong>Sync to GitHub automatically</strong> <span class="wpta-muted">a couple of minutes after you publish, update or delete a post. Files edited in the repo are kept.</span></label>
+				<p class="description"><?php echo self::doc_link( 'sync', 'What a sync pushes and keeps' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 				<?php if ( ! $gh ) : ?><p class="description">Connect GitHub to turn this on.</p><?php endif; ?>
 			</fieldset>
 			<?php self::save_button( 'output' ); ?>
@@ -457,7 +537,7 @@ class WPTA_Admin {
 		<section class="wpta-card" id="next">
 			<h2>Finish and deploy</h2>
 			<h3>Finish it with your Claude or ChatGPT subscription</h3>
-			<p>The repo ships an agent kit. Open it in <strong>Claude Code</strong> and run <code>/wp2astro-polish-layout</code> or <code>/wp2astro-fix-shortcodes</code> — it runs on your Claude plan. Codex and other agents read <code>AGENTS.md</code>.</p>
+			<p>The repo ships an agent kit. Open it in <strong>Claude Code</strong> and run <code>/wp2astro-polish-layout</code> or <code>/wp2astro-fix-shortcodes</code> — it runs on your Claude plan. Codex and other agents read <code>AGENTS.md</code>. <?php echo self::doc_link( 'claude-code', 'Finish the site with Claude Code' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 			<p>Agents can also drive this plugin from the command line:</p>
 			<pre class="wpta-cmd">wp wp2astro convert
 wp wp2astro status</pre>
@@ -466,6 +546,7 @@ wp wp2astro status</pre>
 				<li><strong>FlyWP + DigitalOcean:</strong> add a Node.js site from the repo. Build <code>npm install &amp;&amp; npm run build</code>, start <code>npm start</code> (serves the WordPress redirects too). FlyWP’s free plan covers one server and one site; the droplet is billed by DigitalOcean.</li>
 				<li><strong>Any static host:</strong> build <code>npm run build</code>, publish <code>dist/</code>. Netlify and Cloudflare Pages read <code>public/_redirects</code>.</li>
 			</ol>
+			<p><?php echo self::doc_link( 'deploy', 'Deploy the site' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
 		</section>
 		<?php
 	}

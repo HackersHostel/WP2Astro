@@ -1,7 +1,8 @@
 # AGENTS.md
 
 WP2Astro: a WordPress plugin (Hackers Hostel) that converts the site it runs on into an Astro project, pushes it to
-GitHub and keeps it in sync. `README.md` and `docs/` describe what it does; `dev/README.md` the local test setup.
+GitHub and keeps it in sync. `README.md`, `readme.txt` (WordPress.org format) and `docs/` describe what it does;
+`dev/README.md` the local test setup.
 
 ## Conventions
 
@@ -13,7 +14,10 @@ GitHub and keeps it in sync. `README.md` and `docs/` describe what it does; `dev
 - Job steps stay short (AJAX, WP-Cron and WP-CLI all drive the same `WPTA_Job::run_step()`).
 - AI is optional: every AI step has a deterministic fallback and logs why it was used.
 - Generated files must be deterministic — no timestamps — or every sync commits.
-- External requests are listed in `docs/privacy.md`; keep it current.
+- External requests are listed in `docs/privacy.md` and `readme.txt` (External services); keep both current.
+- Hooks have a WordPress-style docblock with `@since`, mirrored in `docs/developers/hooks.md`.
+- User-facing changes: update the matching `docs/` page (WordPress style guide: sentence case, second person, exact UI
+  labels), the Help tabs in `class-wpta-admin.php`, and `readme.txt` when it applies.
 
 ## Layout
 
@@ -23,7 +27,7 @@ GitHub and keeps it in sync. `README.md` and `docs/` describe what it does; `dev
 - `includes/class-wpta-llm.php` — chat client: OpenAI-compatible (OpenRouter), ChatGPT Responses (SSE)
 - `includes/class-wpta-chatgpt.php` — Sign in with ChatGPT (paste-back loopback flow, refresh, revoke)
 - `includes/class-wpta-connect.php` — AJAX: models, test, OpenRouter OAuth + balance, ChatGPT, GitHub device flow
-- `includes/class-wpta-admin.php` — dashboard page; `assets/admin.js`, `assets/admin.css`
+- `includes/class-wpta-admin.php` — dashboard page, Help tabs; `assets/admin.js`, `assets/admin.css`
 - `includes/class-wpta-exporter.php` — entries (incl. CPTs), SEO meta, redirects, media, theme assets
 - `includes/class-wpta-markdown.php` — HTML → Markdown
 - `includes/class-wpta-scaffold.php` — Astro project templates (SEO head, feed, sitemap, search, server)
@@ -33,11 +37,15 @@ GitHub and keeps it in sync. `README.md` and `docs/` describe what it does; `dev
 - `includes/class-wpta-sync.php` — sync plan (pure), manifest, history, lock, auto-sync cron
 - `includes/class-wpta-job.php` — phased job runner
 - `includes/class-wpta-cli.php` — `wp wp2astro convert|status`
-- `includes/class-wpta-updater.php` — updates from GitHub releases
-- `tests/run.php` — unit tests for the pure parts; `dev/` — mocks + driver (not shipped)
+- `includes/class-wpta-updater.php` — updates from GitHub releases, plugin details from `readme.txt` (not in the
+  WordPress.org build)
+- `readme.txt` — WordPress.org readme; `.wordpress-org/` — plugin directory icons, banners, screenshots (not shipped)
+- `docs/` — task-based user guides; `docs/developers/` — hooks, WP-CLI, white-label, OAuth app, releasing
+- `tests/run.php` — unit tests for the pure parts and readme checks; `dev/` — mocks + driver, `dev/wporg/` asset and
+  screenshot scripts (not shipped)
 
 ## Checks before calling something done
 
 - `php tests/run.php` and `find . -name '*.php' -not -path './dev/*' -exec php -l {} \;`
 - A conversion on the local WP with `python3 dev/drive.py`, then `npm install && npm run build` on the output
-- `bin/build-zip.sh` builds
+- `bin/build-zip.sh` and `bin/build-zip.sh --wporg` build
