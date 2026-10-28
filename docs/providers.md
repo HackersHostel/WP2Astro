@@ -1,67 +1,55 @@
-# AI providers
+# Choose an AI model
 
-AI does two jobs: it rebuilds the theme's page shell (header, menu, footer) as `src/layouts/BaseLayout.astro`, and it
-replaces dead shortcodes left by removed plugins. Both are single prompts with strict validation and a fallback, so
-cheap models work and a failed answer never breaks the conversion.
+AI is optional. It does two jobs during a conversion:
 
-WP2Astro keeps this lightweight: nothing runs on your server except a few HTTPS requests. Results are cached in
-`wp-content/uploads/wp2astro/cache/`, so a sync only calls the model again when the theme, the menu or a post with dead
-shortcodes changed.
+- **Layout:** it rebuilds your theme's page shell (header, menu, footer) as `src/layouts/BaseLayout.astro`, from the
+  rendered homepage.
+- **Shortcode cleanup:** it replaces shortcodes left behind by plugins you removed, such as `[vc_row]` or `[button]`.
 
-| Provider | Pays with | Connect | Notes |
+Each job is a single request with strict checks. If the answer fails the checks, WP2Astro uses the default layout or
+leaves the shortcode in place and lists it in `CONVERSION_REPORT.md`, so a bad answer never breaks the conversion.
+Nothing heavy runs on your server: only a few HTTPS requests.
+
+## Compare the options
+
+| Option in the **AI model** card | You pay with | How to connect | Guide |
 |---|---|---|---|
-| ChatGPT plan | ChatGPT Plus/Pro | Sign in with ChatGPT | No API key. Counts toward the plan's limits. |
-| Claude plan | Claude Pro/Max | Claude Code + the agent kit | Runs in Claude Code, not in the plugin (see below). |
-| OpenRouter | Credits (some models free) | Connect button or key | Default model `anthropic/claude-haiku-5.5`. Balance and **Buy credits** in the dashboard. |
-| No AI | — | — | Default layout, dead shortcodes listed in the report. |
+| **ChatGPT plan** | Your ChatGPT Plus or Pro plan | **Sign in with ChatGPT** | [Use your ChatGPT plan](chatgpt.md) |
+| **OpenRouter** | OpenRouter credits (some models are free) | **Connect OpenRouter**, or paste an API key | [Use OpenRouter](openrouter.md) |
+| **Claude plan** | Your Claude Pro or Max plan | Claude Code and the agent kit, after converting | [Finish the site with Claude Code](claude-code.md) |
+| **No AI** | — | — | Default layout; leftover shortcodes listed in the report |
 
-OpenRouter and ChatGPT have **Load models** (asks for the model list) and **Test** (sends a one-line prompt and shows
-the answer and timing).
+Claude plans can only be used in Claude's own apps, so the **Claude plan** tile doesn't connect anything in WordPress.
+It points you to the agent kit instead.
 
-To route OpenRouter-style requests through your own OpenAI-compatible gateway (LiteLLM, a company proxy), filter the
-provider:
+## Choose which AI steps run
 
-```php
-add_filter( 'wpta_provider', function ( $p ) {
-	if ( 'openrouter' === $p['id'] ) {
-		$p['base_url'] = 'https://llm-gateway.example.com/v1';
-	}
-	return $p;
-} );
-```
+Under **AI steps** in the **AI model** card:
 
-## ChatGPT plan (Sign in with ChatGPT)
+- **Rebuild the theme's header, menu and footer as an Astro layout**
+- **Clean up dead shortcodes in posts**
 
-WP2Astro uses OpenAI's [ChatGPT plan usage](https://developers.openai.com/siwc/token-sharing-open-source) for
-open-source, self-hosted apps. Each WordPress install registers itself as its own client the first time someone signs
-in.
+Clear either one to skip it. Click **Save settings**.
 
-OpenAI only allows a `http://127.0.0.1:1455/auth/callback` callback, which points at the computer running the browser,
-not at your server. So:
+## Check a model before you convert
 
-1. Click **Sign in with ChatGPT**. A ChatGPT tab opens.
-2. Approve WP2Astro. The tab then fails to load `127.0.0.1:1455`. That is expected.
-3. Copy that address and paste it into the dashboard. WordPress exchanges the one-time code (protected by PKCE and a
-   state check) for tokens.
+The ChatGPT plan and OpenRouter panels have two buttons next to **Model**:
 
-Tokens are encrypted in the database and refreshed automatically (access tokens last an hour, refresh tokens rotate).
-Signing out revokes the session at OpenAI. Usage counts toward your plan; set a per-app limit in
-[ChatGPT → Settings → Usage](https://chatgpt.com/settings/usage).
+- **Load models** — fetches the models you can use and fills the list. Click the **Model** field to pick one.
+- **Test** — sends a one-line prompt and shows the answer and how long it took.
 
-## Claude subscriptions
+## Results are cached
 
-Anthropic doesn't allow Claude Pro/Max subscriptions to be used from other apps, so WP2Astro won't ask for one. Two
-supported ways to use Claude:
+AI results are saved in `wp-content/uploads/wp2astro/cache/`. A sync only calls the model again when the theme, the
+menu or a post with dead shortcodes changed, so repeated syncs don't spend credits or plan usage. Background syncs
+(auto-sync) never call the model for the layout.
 
-- **Your subscription through Claude Code.** Every generated repo ships `CLAUDE.md` and skills. Convert with *No AI*
-  (or any provider), open the repo in Claude Code and run `/wp2astro-polish-layout`, `/wp2astro-fix-shortcodes` or
-  `/wp2astro-verify`. Later syncs from WordPress keep the files Claude Code changed.
-- **Claude models through OpenRouter** (the default model is Claude Haiku), paid with OpenRouter credits.
+## What is sent to the model
 
-## OpenRouter
+The homepage HTML trimmed to the header, menu and footer (no scripts or styles), the menu items, and the full
+Markdown of posts that contain dead shortcodes. See [Privacy and external services](privacy.md).
 
-**Connect OpenRouter** uses OpenRouter's OAuth (PKCE): you log in on openrouter.ai and come back with an API key tied to
-your account. No key copying. The dashboard then shows your credit balance and a **Buy credits** button (credits are
-bought on OpenRouter; the balance refreshes when you come back to the tab). Models with `:free` in their ID cost
-nothing, and `openrouter/free` picks a free model for you. Your site must be reachable by your browser at its admin
-URL for the callback; otherwise paste a key from openrouter.ai.
+## For developers
+
+To route requests through your own OpenAI-compatible gateway, use the
+[`wpta_provider` filter](developers/hooks.md#wpta_provider).

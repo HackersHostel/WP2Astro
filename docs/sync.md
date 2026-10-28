@@ -1,48 +1,97 @@
-# Sync
+# Keep the site in sync
 
-Every run converts the whole site again (it's fast and deterministic), then compares the result with what is on
-GitHub and commits only the difference.
+After the first conversion, the **Convert to Astro** button becomes **Sync now**. A sync builds the whole site again
+(it's fast and gives the same result for the same content), compares it with what is on GitHub, and commits only the
+difference. Files you or an agent edited in the repository are never overwritten.
+
+## Sync by hand
+
+1. Go to **WP2Astro**.
+2. Click **Sync now** in the **Sync** card.
+3. When it finishes, you see either "Synced. 3 file(s) changed, 0 removed." with a **View commit ↗** button, or
+   "Already up to date. Nothing changed since the last sync."
+
+If nothing changed, no commit is made.
 
 ## What happens to each file
 
-WP2Astro remembers the blob of every file it pushed (the *manifest*, stored per repo in the `wpta_sync_manifest`
-option). For each file:
+WP2Astro remembers what it pushed last time. For each file it compares three versions: the one WordPress generates
+now, the one on GitHub, and the one it pushed last time.
 
 | Situation | Result |
 |---|---|
 | Same as on GitHub | Nothing to do |
-| Changed in WordPress, untouched in the repo | Pushed |
-| **Edited in the repo since the last sync** | **Kept as it is in the repo**, listed as "kept" |
-| Added to the repo by someone (not generated) | Kept |
-| No longer generated (post deleted/unpublished), untouched in the repo | Removed |
-| No longer generated, but edited in the repo | Kept |
+| Changed in WordPress, untouched in the repository | Pushed |
+| **Edited in the repository since the last sync** | **Kept as it is in the repository**, counted as "kept" |
+| Added to the repository by someone (not generated) | Left alone |
+| No longer generated (post deleted or unpublished), untouched in the repository | Removed |
+| No longer generated, but edited in the repository | Left alone |
 
-If nothing changed, no commit is made. To hand a file you edited back to WordPress, delete it in the repo (or restore
-the last synced version); the next sync writes it again.
+**To hand a file back to WordPress**, delete it in the repository, or restore the version WordPress last pushed. The
+next sync writes it again.
 
-The very first sync to a repo replaces everything that's in it (normally just the README GitHub created).
+**Keep in mind:** a kept file stops receiving changes from WordPress. For example, if you edit `src/site.json` in the
+repository, menu and category changes in WordPress no longer reach it until you hand it back.
 
-## Things that make a run cheap
+## Turn on auto-sync
 
-- Unchanged files aren't uploaded; files are compared by their git blob id, computed locally.
-- AI results are cached: the layout is reused while the theme and menu are unchanged, and a cleaned post is reused
-  while the post is unchanged.
-- `CONVERSION_REPORT.md` and `AGENTS.md` contain no timestamps, so they only change when the content does.
+1. Connect GitHub first (see [Connect GitHub](github.md)).
+2. In the **What to build** card, under **Keep in sync**, tick **Sync to GitHub automatically**.
+3. Click **Save settings**.
 
-## Auto-sync
+The header of the dashboard now shows **Auto-sync: on**.
 
-Turn on **Sync to GitHub automatically**. A publish, update, unpublish or delete of any exported post type schedules
-one sync two minutes later (more edits in that window join the same sync). It runs in WP-Cron in ~20-second slices.
+From then on, publishing, updating, unpublishing or deleting a post, page or exported custom post type starts one sync
+about two minutes later. More edits within those two minutes join the same sync. If another sync is running, the new
+one waits and tries again five minutes later.
 
-Background syncs never replace `src/layouts/BaseLayout.astro` in the repo, and they don't call the AI for the layout.
+Background syncs differ from **Sync now** in two ways:
 
-WP-Cron runs when the site gets visits. On low-traffic sites, trigger it from the system cron:
+- They never replace `src/layouts/BaseLayout.astro` in the repository, and they don't ask the AI for a new layout.
+  To regenerate the layout, click **Sync now**.
+- They don't build a zip.
+
+## Auto-sync on quiet sites
+
+Background syncs run on WP-Cron, which only runs when someone visits your site. On a site with little traffic, a sync
+can wait until the next visit. To run it on time, ask your host to call WP-Cron from the system cron every five
+minutes, for example with WP-CLI:
 
 ```bash
 */5 * * * * cd /path/to/wordpress && wp cron event run --due-now
 ```
 
-## History
+See [Hooking WP-Cron into the system task scheduler](https://developer.wordpress.org/plugins/cron/hooking-wp-cron-into-the-system-task-scheduler/)
+in the WordPress handbook.
 
-The dashboard and `wp wp2astro status` list the last 20 runs: trigger (button, auto-sync, WP-CLI), entries,
-changed/removed/kept counts, and links to the commit and zip. Zips are kept for 24 hours.
+## See past runs
+
+The **Recent runs** card lists the last 20 runs:
+
+| Column | Shows |
+|---|---|
+| **When** | How long ago it started (hover for the date and time) |
+| **How** | **Button**, **Auto-sync** or **WP-CLI** |
+| **Result** | Entries converted and files changed, removed and kept, or why it failed |
+| (links) | **Commit ↗** and, for 24 hours, **Zip** |
+
+`wp wp2astro status` shows the same list on the command line.
+
+## What makes a sync cheap
+
+- Files are compared by their Git fingerprint, computed on your server, so unchanged files aren't uploaded.
+- AI results are cached. The layout is reused while the theme and menu are unchanged, and a cleaned post is reused
+  while the post is unchanged.
+- Generated files contain no timestamps, so they only change when the content does.
+
+## If someone pushes during a sync
+
+WP2Astro never force-pushes. If the repository changed while a sync was running, the sync stops with "The repo changed
+while syncing (someone pushed). Run the sync again." Run it again: it builds on the new commit and keeps the other
+person's changes.
+
+## Related
+
+- [Connect GitHub](github.md)
+- [Finish the site with Claude Code](claude-code.md)
+- [Troubleshooting](troubleshooting.md)
