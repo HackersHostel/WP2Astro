@@ -3,7 +3,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * The two AI steps. Single-shot prompts, strict validation, deterministic fallback.
- * No tool calling, so small local models (Gemma via Ollama) work as well as big hosted ones.
+ * No tool calling, so small, cheap models work as well as big ones.
  */
 class WPTA_AI {
 

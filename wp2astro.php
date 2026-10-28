@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       WP2Astro
  * Plugin URI:        https://github.com/HackersHostel/wp2astro
- * Description:       Turn this WordPress site into a fast Astro site with the same URLs, push it to GitHub and keep it in sync. Works with free local models, OpenRouter, your ChatGPT plan or Claude.
+ * Description:       Turn this WordPress site into a fast Astro site with the same URLs, push it to GitHub and keep it in sync. Works with your ChatGPT plan, OpenRouter (Claude, GPT, free models) or Claude Code.
  * Version:           0.2.0
  * Requires at least: 6.5
  * Requires PHP:      8.0

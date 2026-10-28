@@ -143,10 +143,9 @@ class WPTA_Admin {
 
 	private static function card_ai( array $s, array $cg ): void {
 		$groups = array(
-			'free'    => 'Free',
 			'plan'    => 'Your subscription',
 			'credits' => 'Pay as you go',
-			'key'     => 'API key',
+			'off'     => 'Off',
 		);
 		$all = WPTA_Settings::providers();
 		?>
@@ -160,7 +159,7 @@ class WPTA_Admin {
 						<h3><?php echo esc_html( $glabel ); ?></h3>
 						<?php foreach ( $all as $id => $p ) : ?>
 							<?php
-							if ( $p['group'] !== $g || ( 'none' === $id && 'free' !== $g ) ) {
+							if ( $p['group'] !== $g ) {
 								continue;
 							}
 							?>
@@ -170,8 +169,8 @@ class WPTA_Admin {
 							</label>
 						<?php endforeach; ?>
 						<?php if ( 'plan' === $g ) : ?>
-							<a class="wpta-provider wpta-provider-info" href="#next">
-								<span><strong>Claude plan</strong><em>via Claude Code</em></span>
+							<a class="wpta-provider wpta-provider-info" href="#next" title="Claude subscriptions only work in Claude's own apps. The repo's agent kit lets Claude Code finish the site on your plan.">
+								<span><strong>Claude plan</strong><em>via Claude Code ↓</em></span>
 							</a>
 						<?php endif; ?>
 					</div>
@@ -196,26 +195,15 @@ class WPTA_Admin {
 					}
 					?>
 					<table class="form-table" role="presentation">
-						<?php if ( in_array( $id, array( 'ollama', 'lmstudio', 'custom' ), true ) ) : ?>
-							<tr>
-								<th><label for="wpta-base-<?php echo esc_attr( $id ); ?>">Server URL</label></th>
-								<td>
-									<input id="wpta-base-<?php echo esc_attr( $id ); ?>" class="regular-text wpta-base" type="url" name="wpta[base_urls][<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $r['base_url'] ); ?>" placeholder="<?php echo esc_attr( $p['base_url'] ?: 'https://example.com/v1' ); ?>">
-									<?php if ( 'custom' !== $id ) : ?>
-										<p class="description">The WordPress server must reach it. On a remote host, point this at the machine running <?php echo esc_html( $p['label'] ); ?>.</p>
-									<?php endif; ?>
-								</td>
-							</tr>
-						<?php endif; ?>
 						<?php if ( $p['key'] ) : ?>
 							<tr>
 								<th><label for="wpta-key-<?php echo esc_attr( $id ); ?>">API key</label></th>
 								<td>
-									<input id="wpta-key-<?php echo esc_attr( $id ); ?>" class="regular-text wpta-key" type="password" autocomplete="off" name="wpta[keys][<?php echo esc_attr( $id ); ?>]" value="" placeholder="<?php echo esc_attr( WPTA_Secrets::mask( $r['api_key'] ) ?: ( 'custom' === $id ? 'Optional' : 'Paste your key' ) ); ?>">
+									<input id="wpta-key-<?php echo esc_attr( $id ); ?>" class="regular-text wpta-key" type="password" autocomplete="off" name="wpta[keys][<?php echo esc_attr( $id ); ?>]" value="" placeholder="<?php echo esc_attr( WPTA_Secrets::mask( $r['api_key'] ) ?: 'Set by Connect, or paste a key' ); ?>">
 									<?php if ( $r['api_key'] ) : ?>
 										<label class="wpta-inline"><input type="checkbox" name="wpta[clear_keys][<?php echo esc_attr( $id ); ?>]" value="1"> Remove</label>
 									<?php endif; ?>
-									<p class="description">Stored encrypted. Only sent to <?php echo esc_html( wp_parse_url( $p['base_url'] ?: 'your endpoint', PHP_URL_HOST ) ?: 'your endpoint' ); ?>.</p>
+									<p class="description">Stored encrypted. Only sent to <?php echo esc_html( (string) wp_parse_url( $p['base_url'], PHP_URL_HOST ) ); ?>.</p>
 								</td>
 							</tr>
 						<?php endif; ?>
@@ -246,14 +234,12 @@ class WPTA_Admin {
 
 	private static function provider_badge( string $id, array $s, array $cg ): string {
 		$on = '';
-		if ( 'chatgpt' === $id && $cg['connected'] ) {
-			$on = 'signed in';
-		} elseif ( 'openrouter' === $id && '' !== ( $s['keys']['openrouter'] ?? '' ) ) {
-			$on = 'connected';
-		} elseif ( in_array( $id, array( 'anthropic', 'openai', 'deepseek' ), true ) && '' !== ( $s['keys'][ $id ] ?? '' ) ) {
-			$on = 'key saved';
-		} elseif ( 'ollama' === $id ) {
-			$on = 'Gemma';
+		if ( 'chatgpt' === $id ) {
+			$on = $cg['connected'] ? 'signed in' : 'Plus or Pro';
+		} elseif ( 'openrouter' === $id ) {
+			$on = '' !== ( $s['keys']['openrouter'] ?? '' ) ? 'connected' : 'Claude, GPT, free models';
+		} elseif ( 'none' === $id ) {
+			$on = 'default layout';
 		}
 		return $on ? '<em>' . esc_html( $on ) . '</em>' : '';
 	}
@@ -271,7 +257,7 @@ class WPTA_Admin {
 				<p class="description">Credits are bought on OpenRouter (card or crypto) and show up here. Models marked “free” cost nothing.</p>
 			<?php else : ?>
 				<p><button type="button" class="button button-primary wpta-or-connect">Connect OpenRouter</button> <span class="wpta-muted">opens openrouter.ai, then comes back here</span></p>
-				<p class="description">No account yet? You can create one during connect and start with free models, then buy credits whenever you need bigger ones.</p>
+				<p class="description">No account yet? Create one during connect. Start with <code>openrouter/free</code>, or add a few dollars of credit for Claude — converting a small blog with Claude Haiku costs around a cent.</p>
 			<?php endif; ?>
 		</div>
 		<?php

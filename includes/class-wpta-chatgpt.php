@@ -253,7 +253,7 @@ class WPTA_ChatGPT {
 		);
 		if ( is_wp_error( $tokens ) ) {
 			delete_transient( $lock );
-			if ( 'invalid_grant' === ( $tokens->get_error_data()['oauth_error'] ?? '' ) ) {
+			if ( in_array( $tokens->get_error_data()['oauth_error'] ?? '', array( 'invalid_grant', 'invalid_client' ), true ) ) {
 				$s['access_token']  = '';
 				$s['refresh_token'] = '';
 				self::save( $s );

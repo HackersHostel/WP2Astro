@@ -5,9 +5,9 @@
 First Hackers Hostel release, renamed from "WP to Astro" to **WP2Astro**.
 
 - New dashboard under its own **WP2Astro** menu: connect a model and GitHub, convert, sync, recent runs.
-- AI providers: Ollama and LM Studio (free, local), ChatGPT plan (Sign in with ChatGPT), OpenRouter (one-click
-  connect, credit balance, Buy credits), Claude API, OpenAI API, DeepSeek, any OpenAI-compatible endpoint, or none.
-  Load models and Test buttons for each.
+- AI providers, kept lightweight: your ChatGPT plan (Sign in with ChatGPT) or OpenRouter (one-click connect, credit
+  balance, Buy credits; Claude, GPT and free models), or no AI. Claude subscriptions work through the agent kit in
+  Claude Code. Load models and Test buttons. Local model servers (Ollama) are no longer offered.
 - GitHub: one-click connect with the device flow (when the OAuth app's client ID is set), token checked on save.
 - Smart sync: only changed files are uploaded and committed, removed entries are removed, files edited in the repo are
   kept, no commit when nothing changed. Optional auto-sync after publishing. Run history in the dashboard and CLI.

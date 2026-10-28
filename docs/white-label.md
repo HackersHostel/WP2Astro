@@ -38,5 +38,6 @@ add_filter( 'wpta_update_repo', fn() => 'acme/siteshift' );
 | Filter | Default | Use |
 |---|---|---|
 | `wpta_post_types` | posts, pages, public custom post types | Add or remove exported post types |
+| `wpta_provider` | — | Change a provider's endpoint or model (e.g. your own OpenAI-compatible gateway) |
 | `wpta_llm_timeout` | `300` | Seconds per AI request |
 | `wpta_github_api` | `https://api.github.com` | GitHub Enterprise or a test server |

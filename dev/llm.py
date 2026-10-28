@@ -58,10 +58,6 @@ class H(BaseHTTPRequestHandler):
         if self.path.endswith('/chat/completions'):
             out = reply(body['messages'][0]['content'], body['messages'][1]['content'], body['model'])
             return self.send(200, {'choices':[{'message':{'role':'assistant','content':out}}]})
-        if self.path.endswith('/messages'):  # Anthropic
-            assert self.headers.get('x-api-key') and self.headers.get('anthropic-version')
-            out = reply(body['system'], body['messages'][0]['content'], body['model'])
-            return self.send(200, {'content': [{'type': 'text', 'text': out}]})
         if self.path.endswith('/responses'):  # Sign in with ChatGPT: SSE, store=false, stream=true
             assert body['store'] is False and body['stream'] is True and 'temperature' not in body
             out = reply(body['instructions'], body['input'][0]['content'], body['model'])

@@ -11,9 +11,9 @@ A WordPress plugin by [Hackers Hostel](https://hackershostel.com). Free and open
   changed slugs, `?p=123`, `?page_id=7`, `?s=search` and `/feed/` redirect to the right place.
 - **Same look.** The theme's CSS, images and fonts are copied, and an AI model rebuilds the header, menu and footer as
   an Astro layout from the rendered homepage.
-- **Bring your own AI — or none.** Free local models (Ollama, LM Studio), your **ChatGPT plan** (Sign in with ChatGPT),
-  **OpenRouter** with one-click connect and in-plugin credit balance, or a Claude, OpenAI or DeepSeek API key. With no
-  AI you still get a working site.
+- **Use the AI you already pay for — or none.** Your **ChatGPT plan** (Sign in with ChatGPT, no API key), or
+  **OpenRouter** with one-click connect, in-plugin credit balance and **Buy credits** (Claude, GPT, and free models).
+  With no AI you still get a working site. Nothing heavy runs on your server.
 - **GitHub in one click.** Connect with GitHub's device flow (or a token), and the plugin creates the repo and pushes.
 - **Smart sync.** Re-runs push only changed files, removed posts are removed, and **files you edit in the repo are
   never overwritten**. Turn on auto-sync and the repo updates a couple of minutes after you publish.
@@ -32,7 +32,7 @@ WordPress. Both are open source; pick what fits.
 |---|---|---|
 | Setup | Install a plugin | Clone, build, configure an MCP server; WordPress application password |
 | Who can run it | Anyone with wp-admin | Developers with Node.js 20+ and Claude Code |
-| AI | Optional: local (free), ChatGPT plan, OpenRouter, Claude/OpenAI/DeepSeek keys | Claude Code session |
+| AI | Optional: ChatGPT plan, OpenRouter (Claude, GPT, free models), or Claude Code via the agent kit | Claude Code session |
 | Keeps the theme's look | Yes (theme CSS + AI-built layout) | Uses its own Astro templates |
 | Shortcodes | Rendered by WordPress itself; dead ones cleaned by AI | Rule-based handling |
 | Old URLs, `?p=`, changed slugs | Yes | Redirect files for several hosts |
@@ -54,13 +54,12 @@ releases.
 ## Use it
 
 1. **AI model** (optional) — pick one:
-   - **Free:** Ollama (default, runs Gemma and other open models) or LM Studio. WordPress must be able to reach the
-     server. Or **No AI**.
    - **Your subscription:** *ChatGPT plan* — click **Sign in with ChatGPT**, approve, paste back the address the tab
-     lands on. Claude subscriptions can't be used inside other apps; use the agent kit with Claude Code instead.
-   - **Pay as you go:** *OpenRouter* — **Connect OpenRouter**, pick a model (free ones are marked), see your balance and
-     **Buy credits** from the dashboard.
-   - **API key:** Claude, OpenAI, DeepSeek or any OpenAI-compatible endpoint.
+     lands on. *Claude plan* — Claude subscriptions can't be used inside other apps, so the generated repo ships an
+     agent kit: open it in Claude Code and it finishes the site on your plan.
+   - **Pay as you go:** *OpenRouter* — **Connect OpenRouter**, pick a model (default Claude Haiku; free ones are
+     marked, or use `openrouter/free`), see your balance and **Buy credits** from the dashboard.
+   - **No AI:** a working site with a clean default layout.
 2. **GitHub** (optional) — **Connect GitHub**, or paste a fine-grained token with *Administration* and *Contents*
    read & write. Without GitHub you download a zip.
 3. **What to build** — SEO, feeds, search, custom post types, agent kit, auto-sync.

@@ -2,10 +2,9 @@
 defined( 'ABSPATH' ) || exit;
 
 /**
- * One chat() call, three wire formats:
- * - openai:    POST {base}/chat/completions (Ollama, LM Studio, OpenRouter, OpenAI, DeepSeek, custom)
- * - anthropic: POST {base}/messages (Claude API key)
- * - chatgpt:   POST {base}/responses with a Sign in with ChatGPT token (user's ChatGPT plan)
+ * One chat() call, two wire formats:
+ * - openai:  POST {base}/chat/completions (OpenRouter, or any OpenAI-compatible gateway via the wpta_provider filter)
+ * - chatgpt: POST {base}/responses with a Sign in with ChatGPT token (the user's ChatGPT plan)
  */
 class WPTA_LLM {
 
@@ -35,7 +34,7 @@ class WPTA_LLM {
 		return $this->model;
 	}
 
-	/** "gemma3 (Ollama)" */
+	/** "anthropic/claude-haiku-5.5 (OpenRouter)" */
 	public function label(): string {
 		return $this->label ? $this->model . ' (' . $this->label . ')' : $this->model;
 	}
@@ -51,16 +50,7 @@ class WPTA_LLM {
 	 * @return string|WP_Error Model text with code fences / think blocks removed.
 	 */
 	public function chat( string $system, string $user, bool $loose_fence = true ) {
-		switch ( $this->kind ) {
-			case 'anthropic':
-				$text = $this->messages( $system, $user );
-				break;
-			case 'chatgpt':
-				$text = $this->responses( $system, $user );
-				break;
-			default:
-				$text = $this->completions( $system, $user );
-		}
+		$text = 'chatgpt' === $this->kind ? $this->responses( $system, $user ) : $this->completions( $system, $user );
 		if ( is_wp_error( $text ) ) {
 			return $text;
 		}
@@ -108,40 +98,6 @@ class WPTA_LLM {
 		}
 		$text = $body['choices'][0]['message']['content'] ?? null;
 		return is_string( $text ) ? $text : '';
-	}
-
-	/** @return string|WP_Error */
-	private function messages( string $system, string $user ) {
-		$res = wp_remote_post(
-			$this->base_url . '/messages',
-			array(
-				'timeout' => self::timeout(),
-				'headers' => array(
-					'Content-Type'      => 'application/json',
-					'x-api-key'         => $this->api_key,
-					'anthropic-version' => '2023-06-01',
-				),
-				'body'    => wp_json_encode(
-					array(
-						'model'      => $this->model,
-						'max_tokens' => 16000,
-						'system'     => $system,
-						'messages'   => array( array( 'role' => 'user', 'content' => $user ) ),
-					)
-				),
-			)
-		);
-		$body = self::decode( $res );
-		if ( is_wp_error( $body ) ) {
-			return $body;
-		}
-		$text = '';
-		foreach ( (array) ( $body['content'] ?? array() ) as $block ) {
-			if ( 'text' === ( $block['type'] ?? '' ) ) {
-				$text .= $block['text'];
-			}
-		}
-		return $text;
 	}
 
 	/**
@@ -248,9 +204,7 @@ class WPTA_LLM {
 	public static function list_models( array $p ) {
 		$headers = array();
 		$url     = $p['base_url'] . '/models';
-		if ( 'anthropic' === $p['kind'] ) {
-			$headers = array( 'x-api-key' => $p['api_key'], 'anthropic-version' => '2023-06-01' );
-		} elseif ( 'chatgpt' === $p['kind'] ) {
+		if ( 'chatgpt' === $p['kind'] ) {
 			$token = WPTA_ChatGPT::access_token();
 			if ( is_wp_error( $token ) ) {
 				return $token;

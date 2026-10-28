@@ -20,7 +20,7 @@ GitHub and keeps it in sync. Read `PRD.md` for scope (v0.2 addendum at the end),
 - `wp2astro.php` — bootstrap, WP-CLI registration
 - `includes/class-wpta-settings.php` — settings, providers, brand (white-label)
 - `includes/class-wpta-secrets.php` — encryption of keys/tokens
-- `includes/class-wpta-llm.php` — chat client: OpenAI-compatible, Anthropic Messages, ChatGPT Responses (SSE)
+- `includes/class-wpta-llm.php` — chat client: OpenAI-compatible (OpenRouter), ChatGPT Responses (SSE)
 - `includes/class-wpta-chatgpt.php` — Sign in with ChatGPT (paste-back loopback flow, refresh, revoke)
 - `includes/class-wpta-connect.php` — AJAX: models, test, OpenRouter OAuth + balance, ChatGPT, GitHub device flow
 - `includes/class-wpta-admin.php` — dashboard page; `assets/admin.js`, `assets/admin.css`

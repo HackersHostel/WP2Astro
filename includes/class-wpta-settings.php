@@ -15,40 +15,21 @@ class WPTA_Settings {
 
 	/**
 	 * Model providers.
-	 * kind: openai (OpenAI-compatible /chat/completions), anthropic (Messages API), chatgpt (Sign in with ChatGPT, Responses API).
-	 * group: free | credits | plan | key — how the user pays.
+	 * kind: openai (OpenAI-compatible /chat/completions) or chatgpt (Sign in with ChatGPT, Responses API).
+	 * group: plan (the user's subscription) | credits (pay as you go) | off.
+	 * Claude subscriptions can't be used from other apps; the generated repo's agent kit covers them through Claude Code.
 	 */
 	public static function providers(): array {
 		return array(
-			'ollama'     => array(
-				'label'    => 'Ollama',
-				'group'    => 'free',
-				'kind'     => 'openai',
-				'base_url' => 'http://localhost:11434/v1',
-				'model'    => 'gemma3',
-				'key'      => false,
-				'note'     => 'Free. Runs open models such as Gemma on your own machine or server; content never leaves it.',
-				'help'     => 'https://ollama.com/download',
-			),
-			'lmstudio'   => array(
-				'label'    => 'LM Studio',
-				'group'    => 'free',
-				'kind'     => 'openai',
-				'base_url' => 'http://localhost:1234/v1',
-				'model'    => '',
-				'key'      => false,
-				'note'     => 'Free. Start the local server in LM Studio and load a model.',
-				'help'     => 'https://lmstudio.ai/',
-			),
 			'openrouter' => array(
 				'label'    => 'OpenRouter',
 				'group'    => 'credits',
 				'kind'     => 'openai',
 				'base_url' => 'https://openrouter.ai/api/v1',
-				'model'    => 'google/gemma-3-27b-it',
+				'model'    => 'anthropic/claude-haiku-5.5',
 				'key'      => true,
 				'connect'  => 'openrouter',
-				'note'     => 'One account for hundreds of models, including free ones. Pay as you go with credits.',
+				'note'     => 'Claude, GPT and hundreds of other models with one account. Pay as you go with credits, or use openrouter/free for free models.',
 				'help'     => 'https://openrouter.ai/models',
 			),
 			'chatgpt'    => array(
@@ -62,54 +43,14 @@ class WPTA_Settings {
 				'note'     => 'Use your ChatGPT Plus or Pro plan through Sign in with ChatGPT. No API key needed.',
 				'help'     => 'https://chatgpt.com/settings/usage',
 			),
-			'anthropic'  => array(
-				'label'    => 'Claude API',
-				'group'    => 'key',
-				'kind'     => 'anthropic',
-				'base_url' => 'https://api.anthropic.com/v1',
-				'model'    => 'claude-sonnet-5-5',
-				'key'      => true,
-				'note'     => 'Claude with an Anthropic API key. To use a Claude subscription instead, finish the site in Claude Code with the agent kit.',
-				'help'     => 'https://console.anthropic.com/settings/keys',
-			),
-			'openai'     => array(
-				'label'    => 'OpenAI API',
-				'group'    => 'key',
-				'kind'     => 'openai',
-				'base_url' => 'https://api.openai.com/v1',
-				'model'    => '',
-				'key'      => true,
-				'note'     => 'OpenAI models with an API key.',
-				'help'     => 'https://platform.openai.com/api-keys',
-			),
-			'deepseek'   => array(
-				'label'    => 'DeepSeek',
-				'group'    => 'key',
-				'kind'     => 'openai',
-				'base_url' => 'https://api.deepseek.com',
-				'model'    => 'deepseek-chat',
-				'key'      => true,
-				'note'     => 'DeepSeek models with an API key.',
-				'help'     => 'https://platform.deepseek.com/api_keys',
-			),
-			'custom'     => array(
-				'label'    => 'Custom',
-				'group'    => 'key',
-				'kind'     => 'openai',
-				'base_url' => '',
-				'model'    => '',
-				'key'      => true,
-				'note'     => 'Any OpenAI-compatible /chat/completions endpoint (vLLM, llama.cpp, LiteLLM, Groq, Together…).',
-				'help'     => '',
-			),
 			'none'       => array(
 				'label'    => 'No AI',
-				'group'    => 'free',
+				'group'    => 'off',
 				'kind'     => 'none',
 				'base_url' => '',
 				'model'    => '',
 				'key'      => false,
-				'note'     => 'Export only: a working Astro site with a clean default layout. Dead shortcodes are listed in the report.',
+				'note'     => 'Export only: a working Astro site with a clean default layout. Dead shortcodes are listed in the report, ready for Claude Code to fix.',
 				'help'     => '',
 			),
 		);
@@ -117,9 +58,8 @@ class WPTA_Settings {
 
 	public static function defaults(): array {
 		return array(
-			'provider'     => 'ollama',
+			'provider'     => 'openrouter',
 			'models'       => array(),
-			'base_urls'    => array(),
 			'keys'         => array(),
 			'ai_layout'    => 1,
 			'ai_cleanup'   => 1,
@@ -155,7 +95,7 @@ class WPTA_Settings {
 	/** Merge $changes into the stored settings (plain values in, encrypted at rest). */
 	public static function update( array $changes ): void {
 		$s = array_merge( self::get(), $changes );
-		unset( $s['api_key'], $s['base_url'], $s['model'] ); // 0.1 fields, migrated in get().
+		unset( $s['api_key'], $s['base_url'], $s['model'], $s['base_urls'] ); // Fields of earlier versions.
 		foreach ( self::SECRETS as $f ) {
 			$s[ $f ] = WPTA_Secrets::seal( (string) $s[ $f ] );
 		}
@@ -178,11 +118,11 @@ class WPTA_Settings {
 		$all = self::providers();
 		$p   = $all[ $id ] ?? $all['none'];
 
-		$p['id']       = isset( $all[ $id ] ) ? $id : 'none';
-		$p['base_url'] = rtrim( trim( (string) ( $s['base_urls'][ $id ] ?? '' ) ) ?: $p['base_url'], '/' );
-		$p['model']    = trim( (string) ( $s['models'][ $id ] ?? '' ) ) ?: $p['model'];
-		$p['api_key']  = (string) ( $s['keys'][ $id ] ?? '' );
-		return $p;
+		$p['id']      = isset( $all[ $id ] ) ? $id : 'none';
+		$p['model']   = trim( (string) ( $s['models'][ $id ] ?? '' ) ) ?: $p['model'];
+		$p['api_key'] = (string) ( $s['keys'][ $id ] ?? '' );
+		// Point a provider at a compatible gateway or a test server.
+		return (array) apply_filters( 'wpta_provider', $p );
 	}
 
 	/** Whether the selected provider is configured enough to try. */
@@ -194,7 +134,7 @@ class WPTA_Settings {
 		if ( 'chatgpt' === $p['kind'] ) {
 			return WPTA_ChatGPT::connected();
 		}
-		return ! $p['key'] || '' !== $p['api_key'] || 'custom' === $p['id'];
+		return ! $p['key'] || '' !== $p['api_key'];
 	}
 
 	public static function github_connected(): bool {
@@ -213,12 +153,6 @@ class WPTA_Settings {
 		foreach ( (array) ( $in['models'] ?? array() ) as $id => $model ) {
 			if ( isset( $providers[ $id ] ) ) {
 				$out['models'][ $id ] = sanitize_text_field( wp_unslash( $model ) );
-			}
-		}
-		$out['base_urls'] = $old['base_urls'];
-		foreach ( (array) ( $in['base_urls'] ?? array() ) as $id => $url ) {
-			if ( isset( $providers[ $id ] ) ) {
-				$out['base_urls'][ $id ] = esc_url_raw( trim( wp_unslash( $url ) ) );
 			}
 		}
 		$out['keys'] = $old['keys'];

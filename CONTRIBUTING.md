@@ -12,12 +12,12 @@ Thanks for helping. By taking part you agree to the [Code of Conduct](CODE_OF_CO
 ## Set up
 
 You need PHP 8.0+, Python 3 and Node 22.23.4+. No API keys or GitHub account: `dev/` has a mock OpenAI-compatible
-server (also speaking the Anthropic and ChatGPT Responses formats) and a mock GitHub API.
+server (also speaking the ChatGPT Responses format) and a mock GitHub API.
 
 ```bash
 php tests/run.php                       # unit tests (no WordPress needed)
 python3 dev/llm.py & python3 dev/gh.py &  # mocks on :11434 and :9999 (mkdir dev-out first)
-python3 dev/drive.py ollama             # full run through the admin endpoints against a local WP on :8899
+python3 dev/drive.py openrouter         # full run through the admin endpoints against a local WP on :8899
 ```
 
 `HANDOFF.md` describes the local WordPress test site. Never point `dev/drive.py` at a real site: it overwrites settings.

@@ -35,14 +35,14 @@ class WPTA_Connect {
 		wp_send_json_error( array( 'message' => is_wp_error( $err ) ? $err->get_error_message() : (string) $err ) );
 	}
 
-	/** Provider from the request, with unsaved form values (base URL, key, model) layered on top. */
+	/** Provider from the request, with unsaved form values (key, model) layered on top. */
 	private static function request_provider(): array {
 		$id = sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) );
 		$p  = WPTA_Settings::provider( $id );
-		foreach ( array( 'base_url' => 'esc_url_raw', 'api_key' => 'sanitize_text_field', 'model' => 'sanitize_text_field' ) as $f => $clean ) {
-			$v = trim( (string) wp_unslash( $_POST[ $f ] ?? '' ) );
+		foreach ( array( 'api_key', 'model' ) as $f ) {
+			$v = trim( sanitize_text_field( wp_unslash( $_POST[ $f ] ?? '' ) ) );
 			if ( '' !== $v ) {
-				$p[ $f ] = rtrim( $clean( $v ), '/' );
+				$p[ $f ] = $v;
 			}
 		}
 		return $p;
@@ -55,7 +55,7 @@ class WPTA_Connect {
 		$p    = self::request_provider();
 		$list = WPTA_LLM::list_models( $p );
 		if ( is_wp_error( $list ) ) {
-			self::fail( 'free' === $p['group'] ? $list->get_error_message() . ' — is the ' . $p['label'] . ' server running and reachable from this WordPress server at ' . $p['base_url'] . '?' : $list );
+			self::fail( $list );
 		}
 		wp_send_json_success( array( 'models' => $list ) );
 	}
