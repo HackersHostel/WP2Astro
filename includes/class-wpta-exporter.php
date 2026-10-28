@@ -1,0 +1,352 @@
+<?php
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Deterministic export: site data, posts/pages → Markdown, media and theme assets.
+ */
+class WPTA_Exporter {
+
+	const ASSET_EXT       = array( 'css', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'ico', 'woff', 'woff2', 'ttf', 'otf', 'eot' );
+	const MAX_ASSET_BYTES = 5 * MB_IN_BYTES;
+	const MAX_MEDIA_BYTES = 50 * MB_IN_BYTES;
+	const KNOWN_SHORTCODES = array( 'gallery', 'caption', 'embed', 'video', 'audio', 'playlist', 'contact-form', 'contact-form-7', 'button', 'column', 'columns', 'row', 'tabs', 'tab', 'toggle', 'accordion', 'slider', 'map', 'youtube', 'vimeo', 'spoiler', 'quote', 'box', 'alert', 'note' );
+
+	/* ------------------------------------------------------------------ URLs */
+
+	/** Strip this site's origin so links/media become root-relative. */
+	public static function relative( string $text ): string {
+		$hosts = array_unique( array_filter( array( wp_parse_url( home_url(), PHP_URL_HOST ), wp_parse_url( site_url(), PHP_URL_HOST ) ) ) );
+		foreach ( $hosts as $host ) {
+			$text = preg_replace( '#(?:https?:)?//' . preg_quote( $host, '#' ) . '(?::\d+)?(?=[/"\'\s)?\#<]|$)#i', '', $text );
+		}
+		return $text;
+	}
+
+	/** Point theme URLs at the copies in public/theme and public/theme-parent. */
+	public static function theme_paths( string $text ): string {
+		$map = array( rtrim( self::rel_url( get_stylesheet_directory_uri() ), '/' ) . '/' => '/theme/' );
+		if ( get_template_directory() !== get_stylesheet_directory() ) {
+			$map[ rtrim( self::rel_url( get_template_directory_uri() ), '/' ) . '/' ] = '/theme-parent/';
+		}
+		return strtr( $text, $map );
+	}
+
+	public static function rel_url( string $url ): string {
+		$r = self::relative( $url );
+		return '' === $r ? '/' : $r;
+	}
+
+	/** Permalink path usable as a static route ("/2010/05/hello/"). */
+	public static function permalink( WP_Post $post ): string {
+		$path = self::rel_url( get_permalink( $post ) );
+		if ( false !== strpos( $path, '?' ) ) {
+			// Plain permalinks (?p=123) can't be static routes.
+			$path = '/' . ( 'page' === $post->post_type ? get_page_uri( $post ) : $post->post_name ) . '/';
+		}
+		$path = '/' . ltrim( $path, '/' );
+		return str_ends_with( $path, '/' ) || preg_match( '/\.[a-z0-9]{2,5}$/i', $path ) ? $path : $path . '/';
+	}
+
+	/* -------------------------------------------------------------- Site data */
+
+	public static function site_data( array $stylesheets ): array {
+		$cats = array();
+		foreach ( get_categories( array( 'hide_empty' => true ) ) as $t ) {
+			$cats[] = array( 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES ), 'path' => self::rel_url( get_term_link( $t ) ) );
+		}
+		$tags = array();
+		foreach ( get_tags( array( 'hide_empty' => true ) ) as $t ) {
+			$tags[] = array( 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES ), 'path' => self::rel_url( get_term_link( $t ) ) );
+		}
+
+		$static_front = 'page' === get_option( 'show_on_front' ) && (int) get_option( 'page_on_front' ) > 0;
+		$posts_page   = (int) get_option( 'page_for_posts' );
+		$blog_base    = $static_front && $posts_page ? self::permalink( get_post( $posts_page ) ) : '/';
+		$name         = html_entity_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+
+		return array(
+			'title'        => $name,
+			'description'  => html_entity_decode( get_bloginfo( 'description' ), ENT_QUOTES ),
+			'url'          => home_url( '/' ),
+			'slug'         => sanitize_title( $name ) ?: 'site',
+			'language'     => get_bloginfo( 'language' ),
+			'timezone'     => wp_timezone_string(),
+			'postsPerPage' => max( 1, (int) get_option( 'posts_per_page', 10 ) ),
+			'frontPage'    => $static_front,
+			'blogBase'     => $blog_base,
+			'menu'         => self::menu(),
+			'categories'   => $cats,
+			'tags'         => $tags,
+			'stylesheets'  => $stylesheets,
+		);
+	}
+
+	private static function menu(): array {
+		$locations = get_nav_menu_locations();
+		$menu_id   = 0;
+		foreach ( array( 'primary', 'menu-1', 'main', 'header', 'top' ) as $loc ) {
+			if ( ! empty( $locations[ $loc ] ) ) {
+				$menu_id = $locations[ $loc ];
+				break;
+			}
+		}
+		if ( ! $menu_id && $locations ) {
+			$menu_id = (int) reset( $locations );
+		}
+		if ( ! $menu_id ) {
+			$menus   = wp_get_nav_menus();
+			$menu_id = $menus ? $menus[0]->term_id : 0;
+		}
+
+		$items = array();
+		if ( $menu_id ) {
+			foreach ( (array) wp_get_nav_menu_items( $menu_id ) as $item ) {
+				if ( (int) $item->menu_item_parent === 0 ) {
+					$items[] = array( 'label' => html_entity_decode( $item->title, ENT_QUOTES ), 'url' => self::rel_url( $item->url ) );
+				}
+			}
+		}
+		if ( ! $items ) {
+			// Same fallback WordPress uses: top-level pages.
+			$front = (int) get_option( 'page_on_front' );
+			foreach ( get_pages( array( 'parent' => 0, 'sort_column' => 'menu_order,post_title' ) ) as $p ) {
+				if ( $p->ID !== $front ) {
+					$items[] = array( 'label' => html_entity_decode( get_the_title( $p ), ENT_QUOTES ), 'url' => self::permalink( $p ) );
+				}
+			}
+		}
+		return $items;
+	}
+
+	/* ---------------------------------------------------------------- Entries */
+
+	public static function entry_ids(): array {
+		return get_posts(
+			array(
+				'post_type'      => array( 'post', 'page' ),
+				'post_status'    => 'publish',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'orderby'        => 'ID',
+				'order'          => 'ASC',
+				'has_password'   => false,
+			)
+		);
+	}
+
+	/**
+	 * @return array{path:string, markdown:string, media:string[], flags:string[], permalink:string, title:string}
+	 */
+	public static function entry( int $id ): array {
+		$post = get_post( $id );
+		$GLOBALS['post'] = $post; // phpcs:ignore WordPress.WP.GlobalVariablesOverride
+		setup_postdata( $post );
+		$html = apply_filters( 'the_content', $post->post_content );
+		wp_reset_postdata();
+
+		$html  = self::relative( $html );
+		$flags = array();
+		$dead  = self::dead_shortcodes( $html );
+		if ( $dead ) {
+			$flags[] = 'shortcodes:' . implode( ',', $dead );
+			// wptexturize curled the quotes inside dead shortcodes; straighten them for the AI step.
+			$html = preg_replace_callback(
+				'/\[\/?[a-z][a-z0-9_-]*[^\]]*\]/i',
+				fn( $m ) => str_replace( array( '&#8221;', '&#8220;', '&#8243;', '&#8242;', '&#8217;', '&#8216;', '”', '“', '″', '′', '’', '‘' ), array( '"', '"', '"', "'", "'", "'", '"', '"', '"', "'", "'", "'" ), $m[0] ),
+				$html
+			);
+		}
+
+		$featured = get_the_post_thumbnail_url( $post, 'full' );
+		$featured = $featured ? self::rel_url( $featured ) : '';
+
+		$media = self::media_refs( $html . ' ' . $featured );
+
+		if ( has_excerpt( $post ) ) {
+			$excerpt = $post->post_excerpt;
+		} else {
+			$plain   = wp_strip_all_tags( preg_replace( '#<(pre|table|figure)\b.*?</\1>#is', ' ', str_replace( '<', ' <', $html ) ) );
+			$plain   = preg_replace( '/\[\/?[a-z][a-z0-9_-]*[^\]]*\]/i', ' ', $plain );
+			$excerpt = wp_trim_words( $plain, 40, '…' );
+		}
+
+		$front = array(
+			'title'      => html_entity_decode( get_the_title( $post ), ENT_QUOTES ),
+			'date'       => get_post_time( 'c', false, $post ),
+			'updated'    => get_post_modified_time( 'c', false, $post ),
+			'permalink'  => self::permalink( $post ),
+			'excerpt'    => trim( html_entity_decode( wp_strip_all_tags( $excerpt ), ENT_QUOTES ) ),
+			'author'     => get_the_author_meta( 'display_name', $post->post_author ),
+			'categories' => 'post' === $post->post_type ? wp_get_post_categories( $id, array( 'fields' => 'slugs' ) ) : array(),
+			'tags'       => 'post' === $post->post_type ? wp_get_post_tags( $id, array( 'fields' => 'slugs' ) ) : array(),
+			'type'       => $post->post_type,
+		);
+		if ( $featured ) {
+			$front['featuredImage'] = $featured;
+		}
+
+		$slug = $post->post_name ?: 'entry-' . $id;
+		$path = 'post' === $post->post_type
+			? 'src/content/posts/' . get_post_time( 'Y-m-d', false, $post ) . '-' . $slug . '.md'
+			: 'src/content/pages/' . str_replace( '/', '--', get_page_uri( $post ) ?: $slug ) . '.md';
+
+		return array(
+			'path'      => $path,
+			'markdown'  => self::frontmatter( $front ) . WPTA_Markdown::convert( $html ),
+			'media'     => $media,
+			'flags'     => $flags,
+			'permalink' => $front['permalink'],
+			'title'     => $front['title'],
+		);
+	}
+
+	public static function frontmatter( array $data ): string {
+		$out = "---\n";
+		foreach ( $data as $k => $v ) {
+			// JSON scalars and arrays are valid YAML.
+			$out .= $k . ': ' . wp_json_encode( $v, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "\n";
+		}
+		return $out . "---\n\n";
+	}
+
+	/** Shortcode-looking text that survived the_content (its plugin is gone). */
+	public static function dead_shortcodes( string $html ): array {
+		$text = wp_strip_all_tags( preg_replace( '#<(pre|code)[^>]*>.*?</\1>#is', '', $html ) );
+		preg_match_all( '/\[(\/?)([a-z][a-z0-9_-]*)((?:\s+[^\]]*)?)\]/i', $text, $m, PREG_SET_ORDER );
+		$names = array();
+		foreach ( $m as $sc ) {
+			$name = strtolower( $sc[2] );
+			if ( '/' === $sc[1] || false !== strpos( $sc[3], '=' ) || preg_match( '/[_-]/', $name ) || in_array( $name, self::KNOWN_SHORTCODES, true ) ) {
+				$names[ $name ] = true;
+			}
+		}
+		return array_keys( $names );
+	}
+
+	/** Root-relative paths of files under the uploads dir referenced in $text. */
+	public static function media_refs( string $text ): array {
+		$base = rtrim( self::rel_url( wp_get_upload_dir()['baseurl'] ), '/' );
+		preg_match_all( '#' . preg_quote( $base, '#' ) . '/[^"\'\s)<>?\#,]+#', $text, $m );
+		return array_values( array_unique( array_map( 'urldecode', $m[0] ) ) );
+	}
+
+	/* ------------------------------------------------------------------ Files */
+
+	/** Copy one referenced upload into the job. Returns '' on success or a reason. */
+	public static function copy_media( string $rel, string $site_dir ): string {
+		$up   = wp_get_upload_dir();
+		$base = rtrim( self::rel_url( $up['baseurl'] ), '/' );
+		$src  = $up['basedir'] . substr( $rel, strlen( $base ) );
+		$real = realpath( $src );
+		if ( ! $real || 0 !== strpos( $real, realpath( $up['basedir'] ) ) || ! is_file( $real ) ) {
+			return 'missing';
+		}
+		if ( filesize( $real ) > self::MAX_MEDIA_BYTES ) {
+			return 'too large (> 50 MB)';
+		}
+		$dest = $site_dir . '/public' . $rel;
+		wp_mkdir_p( dirname( $dest ) );
+		return copy( $real, $dest ) ? '' : 'copy failed';
+	}
+
+	/**
+	 * Copy theme CSS, images and fonts, keeping relative paths so url() references still resolve.
+	 * Returns the list of stylesheet hrefs for the layout.
+	 */
+	public static function copy_theme( string $site_dir, string $home_html ): array {
+		$targets = array( get_stylesheet_directory() => '/theme' );
+		if ( get_template_directory() !== get_stylesheet_directory() ) {
+			$targets[ get_template_directory() ] = '/theme-parent';
+		}
+		foreach ( $targets as $dir => $public ) {
+			self::copy_assets( $dir, $site_dir . '/public' . $public );
+		}
+
+		$sheets = array();
+		wp_mkdir_p( $site_dir . '/public/theme' );
+
+		// Block editor base styles + theme.json global styles (block themes rely on these).
+		$lib = ABSPATH . WPINC . '/css/dist/block-library/style.min.css';
+		if ( is_readable( $lib ) ) {
+			copy( $lib, $site_dir . '/public/theme/wp-block-library.css' );
+			$sheets[] = '/theme/wp-block-library.css';
+		}
+		if ( function_exists( 'wp_get_global_stylesheet' ) ) {
+			$global = wp_get_global_stylesheet();
+			if ( $global ) {
+				file_put_contents( $site_dir . '/public/theme/global-styles.css', self::relative( $global ) );
+				$sheets[] = '/theme/global-styles.css';
+			}
+		}
+
+		// Stylesheets the theme actually enqueues, read from the rendered homepage.
+		$theme_urls = array(
+			rtrim( self::rel_url( get_stylesheet_directory_uri() ), '/' ) => '/theme',
+			rtrim( self::rel_url( get_template_directory_uri() ), '/' )   => get_template_directory() !== get_stylesheet_directory() ? '/theme-parent' : '/theme',
+		);
+		$found = false;
+		if ( $home_html && preg_match_all( '#<link\b[^>]*>#i', $home_html, $links ) ) {
+			foreach ( $links[0] as $tag ) {
+				if ( ! preg_match( '/rel=["\']?stylesheet/i', $tag ) || ! preg_match( '/href=["\']([^"\']+)["\']/i', $tag, $h ) ) {
+					continue;
+				}
+				$href = strtok( self::rel_url( html_entity_decode( $h[1] ) ), '?' );
+				foreach ( $theme_urls as $from => $to ) {
+					if ( 0 === strpos( $href, $from . '/' ) ) {
+						$sheets[] = $to . substr( $href, strlen( $from ) );
+						$found    = true;
+						continue 2;
+					}
+				}
+				if ( preg_match( '#^https://fonts\.(googleapis|bunny)\.#', $h[1] ) ) {
+					$sheets[] = html_entity_decode( $h[1] );
+				}
+			}
+		}
+		if ( ! $found ) {
+			if ( isset( $targets[ get_template_directory() ] ) && get_template_directory() !== get_stylesheet_directory() && is_readable( get_template_directory() . '/style.css' ) ) {
+				$sheets[] = '/theme-parent/style.css';
+			}
+			if ( is_readable( get_stylesheet_directory() . '/style.css' ) ) {
+				$sheets[] = '/theme/style.css';
+			}
+		}
+		return array_values( array_unique( $sheets ) );
+	}
+
+	private static function copy_assets( string $from, string $to ): void {
+		if ( ! is_dir( $from ) ) {
+			return;
+		}
+		$it = new RecursiveIteratorIterator(
+			new RecursiveCallbackFilterIterator(
+				new RecursiveDirectoryIterator( $from, FilesystemIterator::SKIP_DOTS ),
+				fn( $f ) => ! ( $f->isDir() && in_array( $f->getFilename(), array( 'node_modules', '.git', 'vendor', 'src', 'tests' ), true ) )
+			)
+		);
+		$total = 0;
+		foreach ( $it as $file ) {
+			if ( ! $file->isFile() || ! in_array( strtolower( $file->getExtension() ), self::ASSET_EXT, true ) ) {
+				continue;
+			}
+			$size = $file->getSize();
+			if ( $size > self::MAX_ASSET_BYTES || $total + $size > 10 * self::MAX_ASSET_BYTES ) {
+				continue;
+			}
+			$dest = $to . substr( $file->getPathname(), strlen( $from ) );
+			wp_mkdir_p( dirname( $dest ) );
+			if ( copy( $file->getPathname(), $dest ) ) {
+				$total += $size;
+			}
+		}
+	}
+
+	/** Rendered homepage HTML via loopback request ('' if the server can't reach itself). */
+	public static function fetch_home(): string {
+		$res = wp_remote_get( home_url( '/' ), array( 'timeout' => 20, 'sslverify' => false, 'redirection' => 3 ) );
+		if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
+			return '';
+		}
+		return (string) wp_remote_retrieve_body( $res );
+	}
+}

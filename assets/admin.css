@@ -1,0 +1,8 @@
+.wpta-grid { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px; align-items: start; }
+.wpta-card { background: #fff; border: 1px solid #dcdcde; border-radius: 4px; padding: 4px 20px 16px; }
+.wpta-card .form-table th { width: 140px; }
+.wpta-muted { color: #646970; font-weight: 400; font-size: 13px; }
+#wpta-log { background: #1d2327; color: #f0f0f1; padding: 12px; max-height: 320px; overflow: auto; white-space: pre-wrap; font-size: 12px; border-radius: 4px; }
+#wpta-result { margin: 12px 0; }
+#wpta-result .button { margin-right: 8px; }
+@media (max-width: 1100px) { .wpta-grid { grid-template-columns: 1fr; } }
