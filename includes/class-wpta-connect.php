@@ -85,7 +85,9 @@ class WPTA_Connect {
 		$verifier = self::b64url( random_bytes( 48 ) );
 		$state    = self::b64url( random_bytes( 18 ) );
 		set_transient( 'wpta_or_attempt_' . get_current_user_id(), array( 'verifier' => $verifier, 'state' => $state ), 30 * MINUTE_IN_SECONDS );
-		$callback = add_query_arg( array( 'page' => WPTA_Settings::SLUG, 'wpta_openrouter' => 1 ), admin_url( 'admin.php' ) );
+		// OpenRouter drops the callback's own query string and appends ?code=…&state=…, so the callback is a bare
+		// admin URL and or_callback() recognises it by the state stored here.
+		$callback = admin_url( 'admin.php' );
 		wp_send_json_success(
 			array(
 				'url' => self::OPENROUTER_AUTH . '?' . http_build_query(
@@ -104,27 +106,20 @@ class WPTA_Connect {
 		);
 	}
 
-	/** OpenRouter redirects back to wp-admin with ?code=…; exchange it for a user-controlled API key. */
+	/** OpenRouter redirects back to wp-admin with ?code=…&state=…; exchange the code for a user-controlled API key. */
 	public static function or_callback(): void {
-		if ( empty( $_GET['wpta_openrouter'] ) || ( $_GET['page'] ?? '' ) !== WPTA_Settings::SLUG || ! current_user_can( 'manage_options' ) ) {
+		if ( ! isset( $_GET['code'], $_GET['state'] ) || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
-		$back  = admin_url( 'admin.php?page=' . WPTA_Settings::SLUG );
-		$query = wp_unslash( $_GET );
-		$flag  = (string) $query['wpta_openrouter'];
-		if ( false !== strpos( $flag, '?' ) ) {
-			// Tolerate a callback that appended "?code=…" to our URL instead of "&code=…".
-			parse_str( substr( $flag, strpos( $flag, '?' ) + 1 ), $extra );
-			$query += $extra;
+		$key     = 'wpta_or_attempt_' . get_current_user_id();
+		$attempt = get_transient( $key );
+		// Only this user's attempt from the last 30 minutes, with a matching state, counts; anything else isn't ours.
+		if ( ! is_array( $attempt ) || ! hash_equals( $attempt['state'], sanitize_text_field( wp_unslash( $_GET['state'] ) ) ) ) {
+			return;
 		}
-		$attempt = get_transient( 'wpta_or_attempt_' . get_current_user_id() );
-		$code    = sanitize_text_field( (string) ( $query['code'] ?? '' ) );
-		delete_transient( 'wpta_or_attempt_' . get_current_user_id() );
-		// The attempt must be this user's, from the last 30 minutes, with a matching state.
-		if ( ! is_array( $attempt ) || '' === $code || ! hash_equals( $attempt['state'], (string) ( $query['state'] ?? '' ) ) ) {
-			wp_safe_redirect( add_query_arg( 'wpta_notice', 'or_failed', $back ) );
-			exit;
-		}
+		delete_transient( $key );
+		$back     = admin_url( 'admin.php?page=' . WPTA_Settings::SLUG );
+		$code     = sanitize_text_field( wp_unslash( $_GET['code'] ) );
 		$verifier = $attempt['verifier'];
 		$res  = wp_remote_post(
 			self::OPENROUTER_API . '/auth/keys',
