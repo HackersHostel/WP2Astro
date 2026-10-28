@@ -121,7 +121,28 @@ class WPTA_Settings {
 		$p['id']      = isset( $all[ $id ] ) ? $id : 'none';
 		$p['model']   = trim( (string) ( $s['models'][ $id ] ?? '' ) ) ?: $p['model'];
 		$p['api_key'] = (string) ( $s['keys'][ $id ] ?? '' );
-		// Point a provider at a compatible gateway or a test server.
+
+		/**
+		 * Filters a resolved AI provider before it is used.
+		 *
+		 * Use it to point a provider at an OpenAI-compatible gateway (LiteLLM, a company proxy) or a test server,
+		 * or to force a model.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param array $p {
+		 *     The provider definition from WPTA_Settings::providers(), resolved with the saved settings.
+		 *
+		 *     @type string $id       Provider ID: 'openrouter', 'chatgpt' or 'none'.
+		 *     @type string $label    Name shown in the dashboard.
+		 *     @type string $group    'plan', 'credits' or 'off'.
+		 *     @type string $kind     Wire format: 'openai' (/chat/completions), 'chatgpt' (/responses) or 'none'.
+		 *     @type string $base_url API base URL, without a trailing slash.
+		 *     @type string $model    Model ID in use.
+		 *     @type bool   $key      Whether the provider needs an API key.
+		 *     @type string $api_key  The decrypted API key, or ''.
+		 * }
+		 */
 		return (array) apply_filters( 'wpta_provider', $p );
 	}
 
@@ -186,16 +207,33 @@ class WPTA_Settings {
 	 * Licensed white-label builds override this with the `wpta_brand` filter or the WP2ASTRO_BRAND_* constants.
 	 */
 	public static function brand(): array {
-		return apply_filters(
-			'wpta_brand',
-			array(
-				'name'    => defined( 'WP2ASTRO_BRAND_NAME' ) ? WP2ASTRO_BRAND_NAME : 'WP2Astro',
-				'by'      => defined( 'WP2ASTRO_BRAND_BY' ) ? WP2ASTRO_BRAND_BY : 'Hackers Hostel',
-				'url'     => defined( 'WP2ASTRO_BRAND_URL' ) ? WP2ASTRO_BRAND_URL : 'https://github.com/HackersHostel/wp2astro',
-				'docs'    => defined( 'WP2ASTRO_BRAND_DOCS' ) ? WP2ASTRO_BRAND_DOCS : 'https://github.com/HackersHostel/wp2astro/tree/main/docs',
-				'support' => defined( 'WP2ASTRO_BRAND_SUPPORT' ) ? WP2ASTRO_BRAND_SUPPORT : 'https://github.com/HackersHostel/wp2astro/issues',
-				'logo'    => defined( 'WP2ASTRO_BRAND_LOGO' ) ? WP2ASTRO_BRAND_LOGO : WPTA_URL . 'assets/logo.svg',
-			)
+		$brand = array(
+			'name'    => defined( 'WP2ASTRO_BRAND_NAME' ) ? WP2ASTRO_BRAND_NAME : 'WP2Astro',
+			'by'      => defined( 'WP2ASTRO_BRAND_BY' ) ? WP2ASTRO_BRAND_BY : 'Hackers Hostel',
+			'url'     => defined( 'WP2ASTRO_BRAND_URL' ) ? WP2ASTRO_BRAND_URL : 'https://github.com/HackersHostel/wp2astro',
+			'docs'    => defined( 'WP2ASTRO_BRAND_DOCS' ) ? WP2ASTRO_BRAND_DOCS : 'https://github.com/HackersHostel/wp2astro/blob/main/docs',
+			'support' => defined( 'WP2ASTRO_BRAND_SUPPORT' ) ? WP2ASTRO_BRAND_SUPPORT : 'https://github.com/HackersHostel/wp2astro/issues',
+			'forum'   => defined( 'WP2ASTRO_BRAND_FORUM' ) ? WP2ASTRO_BRAND_FORUM : 'https://github.com/HackersHostel/wp2astro/discussions/categories/q-a',
+			'logo'    => defined( 'WP2ASTRO_BRAND_LOGO' ) ? WP2ASTRO_BRAND_LOGO : WPTA_URL . 'assets/logo.svg',
 		);
+
+		/**
+		 * Filters the name and links shown in wp-admin and written into generated files.
+		 *
+		 * Licensed white-label builds use it (or the WP2ASTRO_BRAND_* constants) to ship the plugin under their own name.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param array $brand {
+		 *     @type string $name    Product name: admin menu, page title, generated README, commit messages.
+		 *     @type string $by      Credit in the dashboard footer. '' hides it.
+		 *     @type string $url     Product homepage.
+		 *     @type string $docs    Base URL of the documentation. Help links append "/{page}.md".
+		 *     @type string $support Where to report problems.
+		 *     @type string $forum   Where to ask questions. '' hides the link.
+		 *     @type string $logo    Logo URL, shown at 40×40 px.
+		 * }
+		 */
+		return apply_filters( 'wpta_brand', $brand );
 	}
 }

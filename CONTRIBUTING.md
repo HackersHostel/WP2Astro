@@ -29,9 +29,22 @@ python3 dev/drive.py openrouter         # full run through the admin endpoints a
 - Job steps stay short; slow work gets its own phase.
 - AI is optional: every AI step needs a deterministic fallback and must log why it was used.
 - Generated files must be deterministic (no timestamps), or every sync would commit.
-- New external requests must be listed in [docs/privacy.md](docs/privacy.md).
+- New external requests must be listed in [docs/privacy.md](docs/privacy.md) and in **External services** in
+  `readme.txt`.
+- New hooks get a docblock (`@since`, `@param` for each argument) and an entry in
+  [docs/developers/hooks.md](docs/developers/hooks.md).
+
+## Documentation
+
+Docs for site owners live in [docs/](docs/README.md), one task per page, following the
+[WordPress documentation style guide](https://make.wordpress.org/docs/style-guide/): sentence-case headings, second
+person, present tense, and UI labels written exactly as the dashboard shows them, in bold. Maintainer material goes
+under `docs/developers/`. When a change affects users, update the matching page, the Help tab text in
+`includes/class-wpta-admin.php`, and `readme.txt` (FAQ, changelog) if it applies. `php tests/run.php` checks that
+`readme.txt` stays valid and in step with the plugin version.
 
 ## Pull requests
 
 Short imperative subject ("Add Rank Math breadcrumbs"), what changes for users, and what you ran: `php tests/run.php`,
-a conversion with `dev/drive.py`, and `npm install && npm run build` on the output. Screenshots for UI changes.
+a conversion with `dev/drive.py`, `npm install && npm run build` on the output, and `bin/build-zip.sh`. Screenshots
+for UI changes.

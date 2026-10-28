@@ -1,40 +1,71 @@
-# GitHub
+# Connect GitHub
 
-WP2Astro creates the repo (private by default) and pushes over the GitHub API. No `git` binary is needed on the
-server. Each run is one commit; unchanged files are not uploaded again (see [sync.md](sync.md)).
+When GitHub is connected, WP2Astro creates a repository for your Astro site and pushes to it on every conversion and
+sync. It uses GitHub's API directly, so your server doesn't need `git`. Without GitHub you download a zip instead.
 
-## Connect
+## Connect with one click
 
-**Connect GitHub** uses GitHub's device flow: the dashboard shows a code, you enter it at
-`github.com/login/device`, approve, and the dashboard picks up the connection. The token is stored encrypted.
+1. Go to **WP2Astro** and find the **GitHub** card.
+2. Click **Connect GitHub**. A code such as `ABCD-1234` appears.
+3. Click **Copy**, then **Open github.com/login/device ↗**.
+4. On GitHub, paste the code, click **Continue**, and then **Authorize**.
+5. Back in WordPress, wait a few seconds. The page reloads and shows **✓ Connected as @your-name (GitHub app)**.
 
-**Or use a token:** create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens/new)
-with access to *All repositories* (so it can create the new repo) and these permissions:
+The code is valid for about 15 minutes. If it expires, reload the page and click **Connect GitHub** again.
 
-- Administration: Read and write (create the repo)
-- Contents: Read and write (push)
+One-click connect asks GitHub for the `repo` permission, because GitHub only lets apps create private repositories
+with it. The token is stored encrypted and only sent to GitHub.
 
-WP2Astro checks the token when you save it and shows whose it is.
+## Connect with a personal access token
 
-To disconnect, use **Disconnect** in the dashboard, then revoke the app at
-[github.com/settings/applications](https://github.com/settings/applications) or delete the token.
+Use a token if you prefer to limit access, or if **Connect GitHub** isn't available.
 
-## If someone pushes while a sync runs
+1. Open [Fine-grained personal access tokens](https://github.com/settings/personal-access-tokens/new) on GitHub.
+2. Give it a name and an expiry date.
+3. Under **Repository access**, choose **All repositories**, so the token can create the new repository.
+4. Under **Permissions → Repository permissions**, set:
+   - **Administration:** Read and write (to create the repository)
+   - **Contents:** Read and write (to push)
+5. Click **Generate token** and copy it.
+6. In the **GitHub** card, open **Use a personal access token instead**, paste the token and click
+   **Save settings**.
 
-The ref update is not forced. If the branch moved, the sync stops with "the repo changed while syncing"; run it again
-and it builds on the new commit.
+WP2Astro checks the token right away and shows whose it is. If GitHub refuses it, you see "GitHub didn't accept that
+token, so it wasn't saved" and nothing changes. Check the two permissions and the expiry date.
 
-## For maintainers: the OAuth app
+When the token expires, syncs stop with a GitHub error. Create a new token and paste it the same way.
 
-The **Connect GitHub** button needs the public client ID of an OAuth app with device flow enabled. Until one is set,
-the dashboard only offers the token option.
+## Choose the repository
 
-1. GitHub → the **HackersHostel** organization → **Settings → Developer settings → OAuth Apps → New OAuth App**.
-2. Application name `WP2Astro`, homepage `https://github.com/HackersHostel/wp2astro`, callback URL
-   `https://github.com/HackersHostel/wp2astro` (required by the form, unused by the device flow).
-3. Create it, then tick **Enable Device Flow** and save.
-4. Copy the **Client ID** (no client secret is needed — don't create one) into `WPTA_Connect::GITHUB_CLIENT_ID` in
-   `includes/class-wpta-connect.php`, and release.
+| Setting | What it does |
+|---|---|
+| **Repository** | The repository name, under your GitHub account. The default is your site name followed by `-astro`. |
+| **Private** | Creates a private repository. Ticked by default. |
 
-The device flow requests the `repo` scope, because OAuth apps can't create private repos with less. White-label builds
-can use their own app through the `WP2ASTRO_GITHUB_CLIENT_ID` constant or the `wpta_github_client_id` filter.
+The repository is created on the first run if it doesn't exist. If it already exists, WP2Astro uses it: the first
+sync overwrites files that have the same path as generated files (such as `README.md`) and leaves other files alone.
+A new name is the safest choice.
+
+Changing **Private** later doesn't change an existing repository. Change its visibility on GitHub under
+**Settings → General → Danger Zone**.
+
+WP2Astro creates and syncs repositories under the account that connected. Organization repositories aren't supported
+yet.
+
+## Check the connection
+
+Click **Check repo**. You see either "Token works (@your-name). The repo will be created on the first run." or the
+repository's name, visibility and last push.
+
+## Disconnect
+
+1. Click **Disconnect** and confirm. The repository itself is not touched.
+2. To revoke access completely:
+   - one-click connect: remove **WP2Astro** at [github.com/settings/applications](https://github.com/settings/applications);
+   - token: delete it at [github.com/settings/personal-access-tokens](https://github.com/settings/personal-access-tokens).
+
+## Related
+
+- [Keep the site in sync](sync.md)
+- [Deploy the site](deploy.md)
+- [Privacy and external services](privacy.md)

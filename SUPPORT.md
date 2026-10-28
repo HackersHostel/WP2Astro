@@ -7,5 +7,6 @@
 - **An idea:** start in [Ideas](https://github.com/HackersHostel/wp2astro/discussions/categories/ideas).
 - **A security problem:** report it privately, as [SECURITY.md](SECURITY.md) describes.
 
-The [README](README.md) and [docs/](docs/) cover setup, every provider, GitHub and sync. WP2Astro is maintained by
-volunteers, so answers can take a few days.
+Start with the [documentation](docs/README.md): [Getting started](docs/getting-started.md) and
+[Troubleshooting](docs/troubleshooting.md) answer most questions. In WordPress, click **Help** on the WP2Astro screen.
+WP2Astro is maintained by volunteers, so answers can take a few days.

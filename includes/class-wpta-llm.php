@@ -40,6 +40,15 @@ class WPTA_LLM {
 	}
 
 	private static function timeout(): int {
+		/**
+		 * Filters how long one AI request may take, in seconds.
+		 *
+		 * Raise it for slow models; lower it to fail faster on a host with a short PHP time limit.
+		 *
+		 * @since 0.2.0
+		 *
+		 * @param int $seconds Timeout in seconds. Default 300.
+		 */
 		return (int) apply_filters( 'wpta_llm_timeout', 300 );
 	}
 

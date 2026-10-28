@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Help tabs on the WP2Astro screen (Overview, AI model, GitHub, Sync, Troubleshooting) and a Help sidebar with links
+  to the documentation, Q&A, issues and the changelog. Field descriptions link to the matching guide.
+- `readme.txt` in WordPress.org format, and plugin directory icons and banners in `.wordpress-org/`. **View details**
+  on the Plugins screen now shows the readme's description, installation steps and FAQ.
+- Documentation rewritten as task-based guides for site owners, with developer pages for hooks, WP-CLI, white-label,
+  the GitHub OAuth app and releasing. Every filter has a docblock with `@since`.
+- `bin/build-zip.sh --wporg` builds the WordPress.org version, without the GitHub updater and the `Update URI` header.
+- New `WP2ASTRO_BRAND_FORUM` constant and `forum` brand key for the Help sidebar's "Ask a question" link.
+
 ## 0.2.0
 
 First Hackers Hostel release, renamed from "WP to Astro" to **WP2Astro**.
