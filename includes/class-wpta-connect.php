@@ -15,7 +15,7 @@ class WPTA_Connect {
 	 * Public client ID of the Hackers Hostel GitHub OAuth App (device flow enabled).
 	 * Client IDs are not secrets. Override with WP2ASTRO_GITHUB_CLIENT_ID or the `wpta_github_client_id` filter.
 	 */
-	const GITHUB_CLIENT_ID = '';
+	const GITHUB_CLIENT_ID = 'Ov23liN3yj4jF5N4C24b';
 
 	public static function init(): void {
 		foreach ( array( 'models', 'test', 'or_start', 'or_balance', 'cg_start', 'cg_finish', 'cg_disconnect', 'gh_start', 'gh_poll', 'gh_check', 'gh_disconnect' ) as $a ) {
