@@ -30,5 +30,10 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          notes=$(awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## " v {f=1; next} /^## / {f=0} f' CHANGELOG.md)
-          gh release create "$GITHUB_REF_NAME" build/wp2astro.zip --title "WP2Astro $GITHUB_REF_NAME" --notes "$notes"
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            # Tag moved (e.g. history rewritten): refresh the asset, keep the release and its notes.
+            gh release upload "$GITHUB_REF_NAME" build/wp2astro.zip --clobber
+          else
+            notes=$(awk -v v="${GITHUB_REF_NAME#v}" '$0 ~ "^## " v {f=1; next} /^## / {f=0} f' CHANGELOG.md)
+            gh release create "$GITHUB_REF_NAME" build/wp2astro.zip --title "WP2Astro $GITHUB_REF_NAME" --notes "$notes"
+          fi

@@ -20,7 +20,7 @@ python3 dev/llm.py & python3 dev/gh.py &  # mocks on :11434 and :9999 (mkdir dev
 python3 dev/drive.py openrouter         # full run through the admin endpoints against a local WP on :8899
 ```
 
-`HANDOFF.md` describes the local WordPress test site. Never point `dev/drive.py` at a real site: it overwrites settings.
+`dev/README.md` describes the local WordPress test site. Never point `dev/drive.py` at a real site: it overwrites settings.
 
 ## Rules
 

@@ -1,7 +1,7 @@
 # AGENTS.md
 
 WP2Astro: a WordPress plugin (Hackers Hostel) that converts the site it runs on into an Astro project, pushes it to
-GitHub and keeps it in sync. Read `PRD.md` for scope (v0.2 addendum at the end), `HANDOFF.md` for state and next tasks.
+GitHub and keeps it in sync. `README.md` and `docs/` describe what it does; `dev/README.md` the local test setup.
 
 ## Conventions
 

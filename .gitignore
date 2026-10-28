@@ -3,3 +3,7 @@ node_modules/
 build/
 *.zip
 .DS_Store
+
+# Private planning notes (kept locally, never published)
+HANDOFF.md
+PRD.md

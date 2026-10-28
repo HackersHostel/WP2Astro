@@ -1,7 +1,7 @@
 <?php
 /**
  * Unit tests for the pure parts of WP2Astro (no WordPress needed): php tests/run.php
- * The full pipeline is tested end to end with the harness in dev/ (see HANDOFF.md).
+ * The full pipeline is tested end to end with the harness in dev/ (see dev/README.md).
  */
 
 define( 'ABSPATH', __DIR__ . '/' );
