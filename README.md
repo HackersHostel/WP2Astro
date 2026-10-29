@@ -24,8 +24,9 @@ publish. You keep writing in WordPress; your visitors get a static site. Free an
   changed slugs, `?p=123`, `?page_id=7`, `?s=search` and `/feed/` redirect to the right place.
 - **Same look.** The theme's CSS, images and fonts are copied, and an AI model rebuilds the header, menu and footer as
   an Astro layout from the rendered homepage.
-- **Use the AI you already pay for — or none.** Your **ChatGPT plan** (Sign in with ChatGPT, no API key), or
-  **OpenRouter** with one-click connect, an in-plugin credit balance and **Buy credits** (Claude, GPT and free models).
+- **Open models, the AI you already pay for — or none.** A **local model** (Gemma, Llama or Qwen on Ollama, LM Studio,
+  llama.cpp or vLLM), your **ChatGPT plan** (Sign in with ChatGPT, no API key), or **OpenRouter** with one-click
+  connect, an in-plugin credit balance and **Buy credits** (open Gemma by default; Claude, GPT and free models).
   Without AI you still get a working site.
 - **GitHub in one click.** Connect with GitHub's device flow (or a fine-grained token), and the plugin creates the
   repository and pushes.
@@ -57,7 +58,8 @@ deterministic fallback, so a bad answer never breaks a conversion.
 ## Requirements
 
 - WordPress 6.5 or later, PHP 8.0 or later, and an administrator account.
-- Optional: a ChatGPT Plus or Pro plan, or an OpenRouter account, for the AI steps.
+- Optional: a local model server (such as Ollama), a ChatGPT Plus or Pro plan, or an OpenRouter account, for the AI
+  steps.
 - Optional: a GitHub account, for a repository and sync instead of a zip.
 - To build or serve the generated site: Node.js 22.23.4 or later (on your computer or your host).
 
@@ -72,8 +74,8 @@ Updates arrive in **Dashboard → Updates** like any other plugin, from this rep
 
 ## Quick start
 
-1. **AI model** (optional) — select **ChatGPT plan** and click **Sign in with ChatGPT**, or select **OpenRouter** and
-   click **Connect OpenRouter**, or keep **No AI**.
+1. **AI model** (optional) — select **Local model** and enter your model server's address, select **ChatGPT plan** and
+   click **Sign in with ChatGPT**, select **OpenRouter** and click **Connect OpenRouter**, or keep **No AI**.
 2. **GitHub** (optional) — click **Connect GitHub** and enter the code on github.com. Without GitHub you download a
    zip.
 3. **What to build** — SEO, feeds, search, custom post types, agent kit, auto-sync.
@@ -110,6 +112,7 @@ CONVERSION_REPORT.md              anything that needs a look
 
 - **FlyWP + DigitalOcean:** add a Node.js site from the repo; build `npm install && npm run build`, start `npm start`.
   FlyWP's free plan covers one server and one site; the DigitalOcean droplet is paid.
+- **Render:** add a Node.js web service from the repo with the same build and start commands.
 - **Any static host:** build `npm run build`, publish `dist/`. Netlify and Cloudflare Pages read `public/_redirects`.
 
 See [Deploy the site](docs/deploy.md) for what each option redirects.
@@ -120,11 +123,12 @@ See [Deploy the site](docs/deploy.md) for what each option redirects.
 |---|---|
 | [Getting started](docs/getting-started.md) | [Hooks](docs/developers/hooks.md) |
 | [Choose an AI model](docs/providers.md) | [WP-CLI commands](docs/developers/wp-cli.md) |
-| [Use your ChatGPT plan](docs/chatgpt.md) | [White-label](docs/developers/white-label.md) |
-| [Use OpenRouter](docs/openrouter.md) | [GitHub OAuth app](docs/developers/github-oauth-app.md) |
-| [Finish the site with Claude Code](docs/claude-code.md) | [Releasing](docs/developers/releasing.md) |
-| [Connect GitHub](docs/github.md) | [Contributing](CONTRIBUTING.md) |
-| [Keep the site in sync](docs/sync.md) | [Local test setup](dev/README.md) |
+| [Run a local model](docs/local-models.md) | [White-label](docs/developers/white-label.md) |
+| [Use your ChatGPT plan](docs/chatgpt.md) | [GitHub OAuth app](docs/developers/github-oauth-app.md) |
+| [Use OpenRouter](docs/openrouter.md) | [Releasing](docs/developers/releasing.md) |
+| [Finish the site with Claude Code](docs/claude-code.md) | [Contributing](CONTRIBUTING.md) |
+| [Connect GitHub](docs/github.md) | [Local test setup](dev/README.md) |
+| [Keep the site in sync](docs/sync.md) | |
 | [Deploy the site](docs/deploy.md) | |
 | [Troubleshooting](docs/troubleshooting.md) | |
 | [Privacy and external services](docs/privacy.md) | |
@@ -152,7 +156,7 @@ WordPress. Both are open source; pick what fits.
 |---|---|---|
 | Setup | Install a plugin | Clone, build, configure an MCP server; WordPress application password |
 | Who can run it | Anyone with wp-admin | Developers with Node.js 20+ and Claude Code |
-| AI | Optional: ChatGPT plan, OpenRouter (Claude, GPT, free models), or Claude Code via the agent kit | Claude Code session |
+| AI | Optional: local open models, ChatGPT plan, OpenRouter (Gemma, Claude, GPT, free models), or Claude Code via the agent kit | Claude Code session |
 | Keeps the theme's look | Yes (theme CSS + AI-built layout) | Uses its own Astro templates |
 | Shortcodes | Rendered by WordPress itself; dead ones cleaned by AI | Rule-based handling |
 | Old URLs, `?p=`, changed slugs | Yes | Redirect files for several hosts |

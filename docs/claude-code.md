@@ -11,8 +11,8 @@ reuse them, so WP2Astro never asks for Claude credentials. Instead, you convert 
 yourself on the repository. That is allowed, runs on your plan, and gives better results than a single request,
 because Claude Code can build the site and compare it with the original.
 
-To use Claude models inside the plugin, pick **OpenRouter**; its default model is Claude Haiku. See
-[Use OpenRouter](openrouter.md).
+To use Claude models inside the plugin, pick **OpenRouter** and choose a Claude model, such as
+`anthropic/claude-haiku-5.5`. See [Use OpenRouter](openrouter.md).
 
 ## What the agent kit contains
 

@@ -3,7 +3,7 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * One chat() call, two wire formats:
- * - openai:  POST {base}/chat/completions (OpenRouter, or any OpenAI-compatible gateway via the wpta_provider filter)
+ * - openai:  POST {base}/chat/completions (local model servers, OpenRouter, or any OpenAI-compatible gateway)
  * - chatgpt: POST {base}/responses with a Sign in with ChatGPT token (the user's ChatGPT plan)
  */
 class WPTA_LLM {
@@ -34,7 +34,7 @@ class WPTA_LLM {
 		return $this->model;
 	}
 
-	/** "anthropic/claude-haiku-5.5 (OpenRouter)" */
+	/** "google/gemma-4-31b-it (OpenRouter)" */
 	public function label(): string {
 		return $this->label ? $this->model . ' (' . $this->label . ')' : $this->model;
 	}

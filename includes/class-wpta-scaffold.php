@@ -113,8 +113,11 @@ function send(res, file, status = 200) {
   createReadStream(file).pipe(res);
 }
 
+// Header values must be ASCII: percent-encode non-ASCII paths ("/café/") for the Location header.
+const ascii = (url) => url.replace(/[^\x00-\x7f]+/gu, encodeURIComponent);
+
 function moved(res, to) {
-  res.writeHead(301, { Location: to, 'Cache-Control': 'public, max-age=3600' }).end();
+  res.writeHead(301, { Location: ascii(to), 'Cache-Control': 'public, max-age=3600' }).end();
 }
 
 createServer((req, res) => {
@@ -138,7 +141,7 @@ createServer((req, res) => {
 
   if (existsSync(file) && statSync(file).isFile()) return send(res, file);
   if (existsSync(join(file, 'index.html'))) {
-    if (!path.endsWith('/')) { res.writeHead(301, { Location: path + '/' }).end(); return; }
+    if (!path.endsWith('/')) { res.writeHead(301, { Location: ascii(path + '/') }).end(); return; }
     return send(res, join(file, 'index.html'));
   }
   const notFound = join(root, '404.html');
@@ -700,6 +703,10 @@ See `CONVERSION_REPORT.md` for anything that needs a manual look.
 4. Point your domain at the server and enable SSL in FlyWP.
 
 FlyWP's free plan covers one server and one site; the droplet itself is billed by DigitalOcean.
+
+## Deploy: Render
+
+Create a **Web Service** from this repository with the Node runtime. Build command: `npm install && npm run build` · Start command: `npm start`. Render sets `PORT`, which `server.mjs` listens on.
 
 Any static host works too (build command `npm run build`, output `dist/`); Netlify and Cloudflare Pages read `public/_redirects`.
 

@@ -58,8 +58,8 @@ class WPTA_Admin {
 			'ai'              => array(
 				'AI model',
 				'<p>AI rebuilds your theme’s header, menu and footer as an Astro layout and replaces shortcodes whose plugins are gone. Without it you still get a working site with a clean default layout.</p>
-				<p><strong>ChatGPT plan</strong> uses your ChatGPT Plus or Pro plan through <strong>Sign in with ChatGPT</strong>. <strong>OpenRouter</strong> is pay as you go, with some free models. A Claude plan works through Claude Code and the agent kit instead.</p>',
-				array( 'providers' => 'Choose an AI model', 'chatgpt' => 'Use your ChatGPT plan', 'openrouter' => 'Use OpenRouter', 'claude-code' => 'Finish the site with Claude Code' ),
+				<p><strong>Local model</strong> runs an open model such as Gemma on a server you run, for free. <strong>ChatGPT plan</strong> uses your ChatGPT Plus or Pro plan through <strong>Sign in with ChatGPT</strong>. <strong>OpenRouter</strong> is pay as you go, with some free models. A Claude plan works through Claude Code and the agent kit instead.</p>',
+				array( 'providers' => 'Choose an AI model', 'local-models' => 'Run a local model', 'chatgpt' => 'Use your ChatGPT plan', 'openrouter' => 'Use OpenRouter', 'claude-code' => 'Finish the site with Claude Code' ),
 			),
 			'github'          => array(
 				'GitHub',
@@ -222,6 +222,7 @@ class WPTA_Admin {
 
 	private static function card_ai( array $s, array $cg ): void {
 		$groups = array(
+			'local'   => 'Your own server',
 			'plan'    => 'Your subscription',
 			'credits' => 'Pay as you go',
 			'off'     => 'Off',
@@ -274,6 +275,15 @@ class WPTA_Admin {
 					}
 					?>
 					<table class="form-table" role="presentation">
+						<?php if ( ! empty( $p['server'] ) ) : ?>
+							<tr>
+								<th><label for="wpta-base-<?php echo esc_attr( $id ); ?>">Server URL</label></th>
+								<td>
+									<input id="wpta-base-<?php echo esc_attr( $id ); ?>" class="regular-text wpta-base" type="url" name="wpta[base_urls][<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $r['base_url'] ); ?>" placeholder="<?php echo esc_attr( $p['base_url'] ); ?>">
+									<p class="description">The address of an OpenAI-compatible API, for example Ollama (<code>http://localhost:11434/v1</code>) or LM Studio (<code>http://localhost:1234/v1</code>). Your WordPress server must be able to reach it. <?php echo self::doc_link( 'local-models', 'Run a local model' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
+								</td>
+							</tr>
+						<?php endif; ?>
 						<?php if ( $p['key'] ) : ?>
 							<tr>
 								<th><label for="wpta-key-<?php echo esc_attr( $id ); ?>">API key</label></th>
@@ -313,10 +323,12 @@ class WPTA_Admin {
 
 	private static function provider_badge( string $id, array $s, array $cg ): string {
 		$on = '';
-		if ( 'chatgpt' === $id ) {
+		if ( 'local' === $id ) {
+			$on = 'Gemma, Llama, Qwen';
+		} elseif ( 'chatgpt' === $id ) {
 			$on = $cg['connected'] ? 'signed in' : 'Plus or Pro';
 		} elseif ( 'openrouter' === $id ) {
-			$on = '' !== ( $s['keys']['openrouter'] ?? '' ) ? 'connected' : 'Claude, GPT, free models';
+			$on = '' !== ( $s['keys']['openrouter'] ?? '' ) ? 'connected' : 'open models, Claude, GPT';
 		} elseif ( 'none' === $id ) {
 			$on = 'default layout';
 		}
@@ -544,6 +556,7 @@ wp wp2astro status</pre>
 			<h3>Deploy</h3>
 			<ol>
 				<li><strong>FlyWP + DigitalOcean:</strong> add a Node.js site from the repo. Build <code>npm install &amp;&amp; npm run build</code>, start <code>npm start</code> (serves the WordPress redirects too). FlyWP’s free plan covers one server and one site; the droplet is billed by DigitalOcean.</li>
+				<li><strong>Render:</strong> add a Node.js web service from the repo with the same build and start commands.</li>
 				<li><strong>Any static host:</strong> build <code>npm run build</code>, publish <code>dist/</code>. Netlify and Cloudflare Pages read <code>public/_redirects</code>.</li>
 			</ol>
 			<p><?php echo self::doc_link( 'deploy', 'Deploy the site' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>

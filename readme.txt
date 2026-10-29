@@ -30,7 +30,7 @@ Each sync pushes only the files that changed and removes posts you deleted or un
 
 = Features =
 
-* **Use the AI you already pay for, or none.** Sign in with your ChatGPT Plus or Pro plan (no API key), or connect OpenRouter with one click for Claude, GPT and free models, with your credit balance and a **Buy credits** button in the dashboard.
+* **Open models, the AI you already pay for, or none.** Run an open model such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio, llama.cpp, vLLM), sign in with your ChatGPT Plus or Pro plan (no API key), or connect OpenRouter with one click for Gemma, Claude, GPT and free models, with your credit balance and a **Buy credits** button in the dashboard.
 * **Finish with Claude Code.** Every repository includes an agent kit (`AGENTS.md`, `CLAUDE.md` and Claude Code skills), so Claude Code on your Claude plan, Codex or another agent can polish what the conversion couldn't.
 * **GitHub in one click.** Connect with a one-time code, or a fine-grained token. WP2Astro creates a private repository and pushes to it.
 * **SEO kept.** Titles, descriptions, noindex and canonical URLs from Yoast SEO, Rank Math or All in One SEO, plus Open Graph tags on every page.
@@ -55,7 +55,7 @@ WP2Astro is free and open source, made by [Hackers Hostel](https://hackershostel
 
 Then follow the cards on the dashboard:
 
-1. **AI model** (optional): select **ChatGPT plan** and click **Sign in with ChatGPT**, select **OpenRouter** and click **Connect OpenRouter**, or select **No AI**. Click **Save settings**.
+1. **AI model** (optional): select **Local model** and enter your model server's address, select **ChatGPT plan** and click **Sign in with ChatGPT**, select **OpenRouter** and click **Connect OpenRouter**, or select **No AI**. Click **Save settings**.
 2. **GitHub** (optional): click **Connect GitHub**, enter the code on github.com and approve. Without GitHub you download a zip.
 3. **Convert**: click **Convert to Astro**. When it finishes, click **Open repo** or **Download .zip**.
 
@@ -69,15 +69,15 @@ See [Getting started](https://github.com/HackersHostel/wp2astro/blob/main/docs/g
 
 = Can I use my Claude subscription? =
 
-Not inside the plugin: Anthropic only allows Claude Pro and Max plans in Claude's own apps. Instead, every repository WP2Astro creates includes an agent kit. Open it in Claude Code and run `/wp2astro-polish-layout` or `/wp2astro-fix-shortcodes`; it runs on your Claude plan. To use Claude models inside the plugin, pick OpenRouter, whose default model is Claude Haiku.
+Not inside the plugin: Anthropic only allows Claude Pro and Max plans in Claude's own apps. Instead, every repository WP2Astro creates includes an agent kit. Open it in Claude Code and run `/wp2astro-polish-layout` or `/wp2astro-fix-shortcodes`; it runs on your Claude plan. To use Claude models inside the plugin, pick OpenRouter and choose a Claude model.
 
 = Does my content leave my server? =
 
-Only when you connect a service. With **No AI** and no GitHub connection, nothing leaves your server: you download a zip. With GitHub connected, the generated site (published posts, pages, the media they use and your theme's assets) is pushed to your repository. With an AI model, the trimmed homepage HTML, the menu and posts that contain dead shortcodes are sent to that model. Drafts, private posts, comments and user data are never read. See the External services section.
+Only when you connect a service. With **No AI** and no GitHub connection, nothing leaves your server: you download a zip. With GitHub connected, the generated site (published posts, pages, the media they use and your theme's assets) is pushed to your repository. With an AI model, the trimmed homepage HTML, the menu and posts that contain dead shortcodes are sent to that model. With **Local model**, they only go to your own model server. Drafts, private posts, comments and user data are never read. See the External services section.
 
 = What does OpenRouter cost? =
 
-You pay OpenRouter's price for the model you pick. A conversion makes one layout request, plus one request per post with dead shortcodes; converting a small blog with Claude Haiku costs around one US cent. Models with `:free` in their ID cost nothing, and syncs reuse cached results.
+You pay OpenRouter's price for the model you pick. A conversion makes one layout request, plus one request per post with dead shortcodes; converting a small blog with the default open Gemma model costs a fraction of a US cent. Models with `:free` in their ID cost nothing, and syncs reuse cached results.
 
 = Why does ChatGPT sign-in show a 127.0.0.1 page? =
 
@@ -101,7 +101,7 @@ Yes. With **No AI** you get a complete, working site with a clean default layout
 
 = Where can I host the Astro site? =
 
-Anywhere that runs Node.js or serves static files. Run `npm start` on a Node.js host such as FlyWP with DigitalOcean to keep every old WordPress link redirecting, or publish the `dist/` folder on Netlify, Cloudflare Pages or any static host.
+Anywhere that runs Node.js or serves static files. Run `npm start` on a Node.js host such as FlyWP with DigitalOcean, or Render, to keep every old WordPress link redirecting, or publish the `dist/` folder on Netlify, Cloudflare Pages or any static host.
 
 = Where do I get help? =
 
@@ -153,6 +153,13 @@ WP2Astro connects to the services below only after you set them up, and only whe
 = Your own site (loopback request) =
 
 On every conversion and sync, WP2Astro requests your site's homepage from your own server to read the theme's rendered HTML. This request stays on your server and sends nothing to third parties.
+
+= Your own model server (Local model) =
+
+Used when you select **Local model**, to run the AI steps on an open model you host (Ollama, LM Studio, llama.cpp, vLLM).
+
+* When: when you click **Test** or **Load models**, and during conversions and syncs that run an AI step.
+* What is sent: the AI prompts described below, only to the **Server URL** you entered. No third party is involved unless that address points to one.
 
 = OpenAI (Sign in with ChatGPT) =
 

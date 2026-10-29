@@ -28,6 +28,8 @@ of the screen at any time for a short explanation of each part.
 AI rebuilds your theme's header, menu and footer as an Astro layout, and replaces shortcodes whose plugins are gone.
 Pick one option in the **AI model** card:
 
+- **Local model** — enter the address of your model server, such as Ollama with Gemma. See
+  [Run a local model](local-models.md).
 - **ChatGPT plan** — click **Sign in with ChatGPT**. See [Use your ChatGPT plan](chatgpt.md).
 - **OpenRouter** — click **Connect OpenRouter**. See [Use OpenRouter](openrouter.md).
 - **No AI** — nothing to set up. You get a working site with a clean default layout.

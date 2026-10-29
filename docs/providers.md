@@ -14,8 +14,9 @@ Nothing heavy runs on your server: only a few HTTPS requests.
 
 | Option in the **AI model** card | You pay with | How to connect | Guide |
 |---|---|---|---|
+| **Local model** | Nothing: an open model (Gemma, Llama, Qwen) on a server you run | Enter its **Server URL** | [Run a local model](local-models.md) |
 | **ChatGPT plan** | Your ChatGPT Plus or Pro plan | **Sign in with ChatGPT** | [Use your ChatGPT plan](chatgpt.md) |
-| **OpenRouter** | OpenRouter credits (some models are free) | **Connect OpenRouter**, or paste an API key | [Use OpenRouter](openrouter.md) |
+| **OpenRouter** | OpenRouter credits (some models are free; the default is the open Gemma model) | **Connect OpenRouter**, or paste an API key | [Use OpenRouter](openrouter.md) |
 | **Claude plan** | Your Claude Pro or Max plan | Claude Code and the agent kit, after converting | [Finish the site with Claude Code](claude-code.md) |
 | **No AI** | — | — | Default layout; leftover shortcodes listed in the report |
 
@@ -33,7 +34,7 @@ Clear either one to skip it. Click **Save settings**.
 
 ## Check a model before you convert
 
-The ChatGPT plan and OpenRouter panels have two buttons next to **Model**:
+The Local model, ChatGPT plan and OpenRouter panels have two buttons next to **Model**:
 
 - **Load models** — fetches the models you can use and fills the list. Click the **Model** field to pick one.
 - **Test** — sends a one-line prompt and shows the answer and how long it took.
@@ -47,7 +48,8 @@ menu or a post with dead shortcodes changed, so repeated syncs don't spend credi
 ## What is sent to the model
 
 The homepage HTML trimmed to the header, menu and footer (no scripts or styles), the menu items, and the full
-Markdown of posts that contain dead shortcodes. See [Privacy and external services](privacy.md).
+Markdown of posts that contain dead shortcodes. With **Local model**, it only goes to your own server. See
+[Privacy and external services](privacy.md).
 
 ## For developers
 

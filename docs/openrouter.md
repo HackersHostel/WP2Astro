@@ -1,6 +1,7 @@
 # Use OpenRouter
 
-[OpenRouter](https://openrouter.ai) gives you Claude, GPT and hundreds of other models with one account. You pay as
+[OpenRouter](https://openrouter.ai) gives you open models such as Gemma, Llama and Qwen, plus Claude, GPT and hundreds
+of other models, with one account. You pay as
 you go with credits, and some models are free. WP2Astro connects to your account with one click, shows your balance
 and links to **Buy credits** from the dashboard.
 
@@ -22,7 +23,8 @@ stores it encrypted. You can see or delete it on openrouter.ai under **Settings 
 
 ## Pick a model
 
-The default model is `anthropic/claude-haiku-5.5`: cheap, fast and good at layouts.
+The default model is `google/gemma-4-31b-it`, an open model: cheap, fast and good at layouts. To run an open model on
+your own hardware instead, see [Run a local model](local-models.md).
 
 1. Click **Load models**. Free models are listed first and marked "free".
 2. Click the **Model** field and pick one, or type a model ID.
@@ -47,7 +49,8 @@ A balance under $0.50 is shown in red.
 ## What it costs
 
 You pay OpenRouter's price for the model you pick. A conversion makes one layout request, plus one request per post
-that contains dead shortcodes. Converting a small blog with Claude Haiku costs around one US cent. Syncs reuse cached
+that contains dead shortcodes. Converting a small blog with the default Gemma model costs a fraction of a US cent.
+Syncs reuse cached
 results, so they usually cost nothing.
 
 ## Use an API key instead

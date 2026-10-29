@@ -12,6 +12,9 @@ class WPTA_Job {
 	const MEDIA_BATCH = 100;
 	const BLOB_BATCH  = 25;
 
+	/** AI cache entries not used for this long are removed; a cache hit refreshes the file's time. */
+	const CACHE_TTL = 30 * DAY_IN_SECONDS;
+
 	/** Left as they are in the repo on background syncs, so an AI or hand-tuned layout is never replaced by surprise. */
 	const AUTO_KEEP = array( 'src/layouts/BaseLayout.astro' );
 
@@ -576,6 +579,10 @@ class WPTA_Job {
 		if ( is_wp_error( $remote ) ) {
 			throw new RuntimeException( $remote->get_error_message() );
 		}
+		if ( empty( $remote['complete'] ) ) {
+			// The commit replaces the whole tree, so files missing from a truncated listing would be deleted.
+			throw new RuntimeException( 'GitHub returned only part of the file list for this repo (it has too many files), so a sync could delete files. Sync stopped; nothing was changed.' );
+		}
 		$manifest = WPTA_Sync::manifest( $this->repo_key() );
 		$plan     = WPTA_Sync::plan( $this->s['files'], $remote['files'], $manifest, (array) $this->s['opts']['keep'] );
 
@@ -691,6 +698,12 @@ class WPTA_Job {
 			$state = $dir . '/state.json';
 			if ( is_file( $state ) && filemtime( $state ) < time() - DAY_IN_SECONDS ) {
 				self::rrmdir( $dir );
+			}
+		}
+		// The latest layout is what background syncs use, so it stays however old it is.
+		foreach ( (array) glob( self::cache_dir() . '/*' ) as $file ) {
+			if ( is_file( $file ) && 'layout-latest.astro' !== basename( $file ) && filemtime( $file ) < time() - self::CACHE_TTL ) {
+				unlink( $file );
 			}
 		}
 	}

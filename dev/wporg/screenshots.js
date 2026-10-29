@@ -39,7 +39,7 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   await dashboard();
   await page.check('input[name="wpta[provider]"][value="openrouter"]');
   await page.fill('#wpta-key-openrouter', 'sk-or-test');
-  await page.fill('#wpta-model-openrouter', 'anthropic/claude-haiku-5.5');
+  await page.fill('#wpta-model-openrouter', 'google/gemma-4-31b-it');
   await Promise.all([page.waitForNavigation(), page.click('#ai .wpta-save button')]);
 
   // 3. Connect GitHub with a one-time code (GitHub's device endpoints are faked; nothing is sent to github.com).

@@ -35,7 +35,7 @@ class WPTA_Connect {
 		wp_send_json_error( array( 'message' => is_wp_error( $err ) ? $err->get_error_message() : (string) $err ) );
 	}
 
-	/** Provider from the request, with unsaved form values (key, model) layered on top. */
+	/** Provider from the request, with unsaved form values (server URL, key, model) layered on top. */
 	private static function request_provider(): array {
 		$id = sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) );
 		$p  = WPTA_Settings::provider( $id );
@@ -44,6 +44,10 @@ class WPTA_Connect {
 			if ( '' !== $v ) {
 				$p[ $f ] = $v;
 			}
+		}
+		$url = trim( (string) wp_unslash( $_POST['base_url'] ?? '' ) );
+		if ( ! empty( $p['server'] ) && '' !== $url ) {
+			$p['base_url'] = rtrim( esc_url_raw( $url ), '/' );
 		}
 		return $p;
 	}
@@ -55,7 +59,7 @@ class WPTA_Connect {
 		$p    = self::request_provider();
 		$list = WPTA_LLM::list_models( $p );
 		if ( is_wp_error( $list ) ) {
-			self::fail( $list );
+			self::fail( empty( $p['server'] ) ? $list : $list->get_error_message() . ' Is the model server running, and can this WordPress server reach ' . $p['base_url'] . '?' );
 		}
 		wp_send_json_success( array( 'models' => $list ) );
 	}

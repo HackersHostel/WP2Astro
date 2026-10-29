@@ -132,6 +132,16 @@ check( 'clean keeps markdown fences when strict', WPTA_LLM::clean( "Text\n```js\
 
 check( 'dead shortcodes', WPTA_Exporter::dead_shortcodes( '<p>[vc_row][vc_column]Hi[/vc_column][/vc_row] [button url="x"]Go[/button] [not a shortcode]</p><pre>[gallery]</pre>' ), array( 'vc_row', 'vc_column', 'button' ) );
 
+/* ---------------------------------------------------------------- Paths */
+
+check( 'decode non-ASCII slug', WPTA_Exporter::decode_path( '/2024/01/%e6%97%a5%e6%9c%ac/' ), '/2024/01/日本/' );
+check( 'decode accented slug', WPTA_Exporter::decode_path( '/caf%C3%A9/' ), '/café/' );
+check( 'keep encoded ASCII', WPTA_Exporter::decode_path( '/a%2Fb%20c/' ), '/a%2Fb%20c/' );
+check( 'keep query string', WPTA_Exporter::decode_path( '/s%c3%a9/?q=%c3%a9#x' ), '/sé/?q=%c3%a9#x' );
+check( 'keep invalid UTF-8', WPTA_Exporter::decode_path( '/bad%e6%97/' ), '/bad%e6%97/' );
+check( 'leave absolute URLs', WPTA_Exporter::decode_path( 'https://example.com/caf%c3%a9/' ), 'https://example.com/caf%c3%a9/' );
+check( 'leave protocol-relative URLs', WPTA_Exporter::decode_path( '//cdn.example.com/caf%c3%a9/' ), '//cdn.example.com/caf%c3%a9/' );
+
 /* ------------------------------------------------------------ readme.txt */
 
 // WordPress.org readme rules (https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/),
