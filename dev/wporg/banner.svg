@@ -1,16 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1544 500" width="1544" height="500">
   <defs>
-    <linearGradient id="mark" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff5d01"/>
-      <stop offset="1" stop-color="#b845ed"/>
-    </linearGradient>
     <radialGradient id="glow-a" cx="0.18" cy="0.3" r="0.55">
-      <stop offset="0" stop-color="#ff5d01" stop-opacity="0.28"/>
-      <stop offset="1" stop-color="#ff5d01" stop-opacity="0"/>
+      <stop offset="0" stop-color="#14b8a6" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#14b8a6" stop-opacity="0"/>
     </radialGradient>
     <radialGradient id="glow-b" cx="0.92" cy="0.95" r="0.6">
-      <stop offset="0" stop-color="#b845ed" stop-opacity="0.32"/>
-      <stop offset="1" stop-color="#b845ed" stop-opacity="0"/>
+      <stop offset="0" stop-color="#0f766e" stop-opacity="0.38"/>
+      <stop offset="1" stop-color="#0f766e" stop-opacity="0"/>
     </radialGradient>
     <pattern id="grid" width="44" height="44" patternUnits="userSpaceOnUse">
       <path d="M44 0H0V44" fill="none" stroke="#ffffff" stroke-opacity="0.045" stroke-width="1"/>
@@ -21,22 +17,20 @@
   <rect width="1544" height="500" fill="url(#glow-a)"/>
   <rect width="1544" height="500" fill="url(#glow-b)"/>
 
-  <!-- The logo mark from assets/logo.svg, scaled. -->
+  <!-- The logo from assets/logo.svg (the teal WA glyph), scaled. -->
   <g transform="translate(120 105) scale(4.6)">
-    <rect width="64" height="64" rx="14" fill="#22252c" stroke="#ffffff" stroke-opacity="0.08"/>
-    <path d="M32 9 15 54h7.4l3.6-9.4h12l3.6 9.4H49L32 9Zm0 14.6 4 11.4h-8l4-11.4Z" fill="url(#mark)"/>
-    <circle cx="49" cy="15" r="4" fill="#fff"/>
+    <polygon points="24.5,51 34,51 45.5,13 36,13" fill="#7bb4af" stroke="#7bb4af" stroke-width="1.6" stroke-linejoin="round"/><polygon points="36.5,13 46,13 56.5,51 47,51" fill="#7bb4af" stroke="#7bb4af" stroke-width="1.6" stroke-linejoin="round"/><polygon points="7.5,13 13.9,13 21.9,51 15.5,51" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="15.5,51 21.9,51 29.9,13 23.5,13" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="23.5,13 29.9,13 37.9,51 31.5,51" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="31.5,51 37.9,51 45.9,13 39.5,13" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><rect x="40.5" y="35" width="9" height="6" rx="1" fill="#0f766e"/>
   </g>
 
   <g font-family="'Inter Display', Inter, 'Helvetica Neue', Arial, sans-serif">
     <text x="480" y="228" font-size="124" font-weight="800" fill="#ffffff" letter-spacing="-3">WP2Astro</text>
     <text x="484" y="300" font-size="42" font-weight="500" fill="#c9cdd6">WordPress in, fast Astro site out.</text>
     <g font-size="27" font-weight="600" fill="#ffffff">
-      <rect x="484" y="342" width="196" height="54" rx="27" fill="#ffffff" fill-opacity="0.08" stroke="#ff5d01" stroke-opacity="0.7"/>
+      <rect x="484" y="342" width="196" height="54" rx="27" fill="#ffffff" fill-opacity="0.08" stroke="#2dd4bf" stroke-opacity="0.7"/>
       <text x="582" y="378" text-anchor="middle">Same URLs</text>
-      <rect x="696" y="342" width="196" height="54" rx="27" fill="#ffffff" fill-opacity="0.08" stroke="#e0508a" stroke-opacity="0.7"/>
+      <rect x="696" y="342" width="196" height="54" rx="27" fill="#ffffff" fill-opacity="0.08" stroke="#6fd3c5" stroke-opacity="0.7"/>
       <text x="794" y="378" text-anchor="middle">Same look</text>
-      <rect x="908" y="342" width="268" height="54" rx="27" fill="#ffffff" fill-opacity="0.08" stroke="#b845ed" stroke-opacity="0.7"/>
+      <rect x="908" y="342" width="268" height="54" rx="27" fill="#ffffff" fill-opacity="0.08" stroke="#93c1be" stroke-opacity="0.7"/>
       <text x="1042" y="378" text-anchor="middle">Synced to GitHub</text>
     </g>
   </g>

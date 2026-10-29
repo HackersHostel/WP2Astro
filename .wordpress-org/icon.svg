@@ -1,11 +1,1 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="WP2Astro">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ff5d01"/>
-      <stop offset="1" stop-color="#b845ed"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="#17191e"/>
-  <path d="M32 9 15 54h7.4l3.6-9.4h12l3.6 9.4H49L32 9Zm0 14.6 4 11.4h-8l4-11.4Z" fill="url(#g)"/>
-  <circle cx="49" cy="15" r="4" fill="#fff"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 6 52 52" role="img" aria-label="WP2Astro"><polygon points="24.5,51 34,51 45.5,13 36,13" fill="#7bb4af" stroke="#7bb4af" stroke-width="1.6" stroke-linejoin="round"/><polygon points="36.5,13 46,13 56.5,51 47,51" fill="#7bb4af" stroke="#7bb4af" stroke-width="1.6" stroke-linejoin="round"/><polygon points="7.5,13 13.9,13 21.9,51 15.5,51" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="15.5,51 21.9,51 29.9,13 23.5,13" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="23.5,13 29.9,13 37.9,51 31.5,51" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="31.5,51 37.9,51 45.9,13 39.5,13" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><rect x="40.5" y="35" width="9" height="6" rx="1" fill="#0f766e"/></svg>
