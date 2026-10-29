@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- New logo: the teal WA mark, in the dashboard, the admin menu, the plugin icons and the banner.
 - **Local model** provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio,
   llama.cpp, vLLM) through any OpenAI-compatible **Server URL**.
 - OpenRouter's default model is now the open `google/gemma-4-31b-it` (was `anthropic/claude-haiku-5.5`).

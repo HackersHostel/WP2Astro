@@ -25,7 +25,7 @@ class WPTA_Admin {
 	}
 
 	public static function menu(): void {
-		$icon = 'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path fill="black" d="M10 1.5 2.5 18.5h3.2l1.6-3.8h5.4l1.6 3.8h3.2L10 1.5Zm0 6.2 1.8 4.4H8.2L10 7.7Z"/></svg>' );
+		$icon = 'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 6 52 52"><path fill="black" fill-opacity=".55" d="M24.5 51h9.5L45.5 13H36ZM36.5 13H46l10.5 38H47Z"/><path fill="black" d="M7.5 13h6.4l8 38h-6.4ZM15.5 51h6.4l8-38h-6.4ZM23.5 13h6.4l8 38h-6.4ZM31.5 51h6.4l8-38h-6.4ZM40.5 35h9v6h-9Z"/></svg>' );
 		$name = WPTA_Settings::brand()['name'];
 		$hook = add_menu_page( $name, $name, 'manage_options', WPTA_Settings::SLUG, array( __CLASS__, 'render' ), $icon, 81 );
 		add_action( 'load-' . $hook, array( __CLASS__, 'help' ) );

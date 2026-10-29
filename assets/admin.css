@@ -1,4 +1,4 @@
-.wpta { --wpta-accent: #ff5d01; --wpta-ink: #1d2327; --wpta-line: #dcdcde; --wpta-soft: #f6f7f7; --wpta-good: #00a32a; --wpta-bad: #d63638; max-width: 1400px; }
+.wpta { --wpta-accent: #0f766e; --wpta-ink: #1d2327; --wpta-line: #dcdcde; --wpta-soft: #f6f7f7; --wpta-good: #00a32a; --wpta-bad: #d63638; max-width: 1400px; }
 .wpta [hidden] { display: none !important; } /* WP's .button sets display and would beat the attribute */
 .wpta-head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 16px 0 8px; }
 .wpta-head h1 { padding: 0; margin: 0; font-size: 23px; line-height: 1.2; }
@@ -26,7 +26,7 @@
 .wpta-group h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: #646970; }
 .wpta-provider { display: flex; align-items: center; gap: 8px; padding: 8px 10px; margin-bottom: 6px; border: 1px solid var(--wpta-line); border-radius: 6px; cursor: pointer; background: #fff; color: var(--wpta-ink); text-decoration: none; }
 .wpta-provider:hover { border-color: #8c8f94; }
-.wpta-provider:has(input:checked) { border-color: var(--wpta-accent); box-shadow: 0 0 0 1px var(--wpta-accent); background: #fff8f3; }
+.wpta-provider:has(input:checked) { border-color: var(--wpta-accent); box-shadow: 0 0 0 1px var(--wpta-accent); background: #f0fdfa; }
 .wpta-provider input { margin: 0; }
 .wpta-provider span { display: flex; flex-direction: column; line-height: 1.3; }
 .wpta-provider em { font-style: normal; font-size: 11px; color: #646970; }
