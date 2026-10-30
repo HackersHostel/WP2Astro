@@ -21,7 +21,8 @@ class WPTA_Settings {
 	 * kind: openai (OpenAI-compatible /chat/completions) or chatgpt (Sign in with ChatGPT, Responses API).
 	 * group: local (a model server the user runs) | plan (the user's subscription) | credits (pay as you go) | off.
 	 * server: the user sets the base URL.
-	 * Claude subscriptions can't be used from other apps; the generated repo's agent kit covers them through Claude Code.
+	 * Claude subscriptions can't be used from other apps, so 'claude' converts without AI and the generated repo's
+	 * agent kit lets Claude Code finish the site on the user's plan.
 	 */
 	public static function providers(): array {
 		return array(
@@ -57,6 +58,16 @@ class WPTA_Settings {
 				'connect'  => 'chatgpt',
 				'note'     => 'Use your ChatGPT Plus or Pro plan through Sign in with ChatGPT. No API key needed.',
 				'help'     => 'https://chatgpt.com/settings/usage',
+			),
+			'claude'     => array(
+				'label'    => 'Claude plan',
+				'group'    => 'plan',
+				'kind'     => 'none',
+				'base_url' => '',
+				'model'    => '',
+				'key'      => false,
+				'note'     => 'Claude plans only work in Claude’s own apps. WordPress converts with the default layout and adds the agent kit, then Claude Code polishes the site on your Pro or Max plan.',
+				'help'     => '',
 			),
 			'none'       => array(
 				'label'    => 'No AI',
@@ -155,7 +166,7 @@ class WPTA_Settings {
 		 * @param array $p {
 		 *     The provider definition from WPTA_Settings::providers(), resolved with the saved settings.
 		 *
-		 *     @type string $id       Provider ID: 'local', 'openrouter', 'chatgpt' or 'none'.
+		 *     @type string $id       Provider ID: 'local', 'openrouter', 'chatgpt', 'claude' or 'none'.
 		 *     @type string $label    Name shown in the dashboard.
 		 *     @type string $group    'local', 'plan', 'credits' or 'off'.
 		 *     @type string $kind     Wire format: 'openai' (/chat/completions), 'chatgpt' (/responses) or 'none'.
@@ -227,6 +238,9 @@ class WPTA_Settings {
 		$out['repo_name']  = $repo ?: $old['repo_name'];
 		foreach ( array( 'ai_layout', 'ai_cleanup', 'repo_private', 'auto_sync', 'seo', 'feeds', 'search', 'cpts', 'agent_kit' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
+		}
+		if ( 'claude' === $out['provider'] ) {
+			$out['agent_kit'] = 1; // Claude Code finishes the site through the kit.
 		}
 		return $out;
 	}

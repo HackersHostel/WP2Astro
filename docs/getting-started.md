@@ -19,41 +19,41 @@ on your side.
 3. Choose `wp2astro.zip`, click **Install Now**, then **Activate Plugin**.
 4. Click **WP2Astro** in the admin menu.
 
-The dashboard has three numbered cards on the left (**AI model**, **GitHub** and **What to build**) and the
-**Convert** card on the right. Each card has its own **Save settings** button. Click **Help** in the top-right corner
-of the screen at any time for a short explanation of each part.
+The first time, a three-step setup opens: **Choose AI**, **Connect GitHub** and **Convert**. Both AI and GitHub are
+optional, and **Skip setup** in the corner takes you straight to the dashboard. Click **Help** at the top of the
+screen at any time for a short explanation of each part.
 
 ## Step 1: pick an AI model (optional)
 
 AI rebuilds your theme's header, menu and footer as an Astro layout, and replaces shortcodes whose plugins are gone.
-Pick one option in the **AI model** card:
+Pick one of the five cards:
 
 - **Local model** — enter the address of your model server, such as Ollama with Gemma. See
   [Run a local model](local-models.md).
 - **ChatGPT plan** — click **Sign in with ChatGPT**. See [Use your ChatGPT plan](chatgpt.md).
+- **Claude plan** — nothing to connect. WordPress converts with the default layout, and you finish the site in
+  Claude Code on your Pro or Max plan. See [Finish the site with Claude Code](claude-code.md).
 - **OpenRouter** — click **Connect OpenRouter**. See [Use OpenRouter](openrouter.md).
 - **No AI** — nothing to set up. You get a working site with a clean default layout.
 
-If you pay for Claude, pick **No AI** for now and finish the site later in Claude Code. See
-[Finish the site with Claude Code](claude-code.md).
-
-Click **Save settings** at the bottom of the card.
+Click **Continue**.
 
 ## Step 2: connect GitHub (optional)
 
-Skip this step if you only want a zip.
+If you only want a zip, click **Skip — download a zip**.
 
-1. In the **GitHub** card, click **Connect GitHub**.
+1. Click **Connect GitHub**.
 2. Click **Copy**, then **Open github.com/login/device ↗**, paste the code and approve.
-3. Back in WordPress, the card shows **✓ Connected as @your-name**.
-4. Check the **Repository** name. WP2Astro creates it on the first run. Leave **Private** ticked to keep it private.
-5. Click **Save settings**.
+3. Back in WordPress, the page shows **✓ Connected as @your-name**.
+4. Check the **Repository** name. WP2Astro creates it on the first run. Leave **Private repository** on to keep it
+   private.
+5. Click **Continue**.
 
 See [Connect GitHub](github.md) for the token option and details.
 
 ## Step 3: choose what to build
 
-In the **What to build** card, everything is on by default:
+The last step lists what gets built. Everything is on by default:
 
 | Option | What you get |
 |---|---|
@@ -63,25 +63,24 @@ In the **What to build** card, everything is on by default:
 | **Custom post types** | Public custom post types with their own folders and archives |
 | **Agent kit** | `AGENTS.md`, `CLAUDE.md` and Claude Code skills, so an AI agent can finish the site |
 
-Under **Keep in sync**, you can turn on **Sync to GitHub automatically** once GitHub is connected. See
+Once GitHub is connected, turn on **Sync after I publish** to sync automatically. See
 [Keep the site in sync](sync.md).
-
-Click **Save settings**.
 
 ## Step 4: convert
 
-1. In the **Convert** card, check the summary: your content, the AI model and where the output goes.
+1. Check the summary on the left: your content, the AI model and where the output goes.
 2. Click **Convert to Astro**.
-3. Keep the tab open while the progress bar runs. A small blog takes under a minute; the AI layout step can take a
-   minute or two on its own.
+3. Keep the tab open while the steps run. A small blog takes under a minute; the AI layout step can take a
+   minute or two on its own. **Stop** ends the run after the current step; nothing is pushed.
 
 When the run finishes:
 
-- **With GitHub**, click **Open repo ↗** to see the new repository.
-- **Without GitHub**, click **Download .zip**. The download is kept for 24 hours.
+- **With GitHub**, click **Open repo** to see the new repository.
+- **Without GitHub**, click **Download zip**. The download is kept for 24 hours.
 
-The run also appears under **Recent runs**. From now on the button reads **Sync now**: each sync pushes only what
-changed.
+Click **Go to the dashboard**. The **Overview** tab shows the status, what was converted, your connections and the
+Claude Code commands; **Activity** lists every run; **Settings** holds everything from the setup, saved with
+**Save settings**. From now on the main button reads **Sync now**: each sync pushes only what changed.
 
 ## Step 5: check the result
 

@@ -12,20 +12,23 @@ Nothing heavy runs on your server: only a few HTTPS requests.
 
 ## Compare the options
 
-| Option in the **AI model** card | You pay with | How to connect | Guide |
+The same five choices are step 1 of the first-run setup and the **AI model** section of the **Settings** tab.
+
+| Option in **Settings → AI model** | You pay with | How to connect | Guide |
 |---|---|---|---|
 | **Local model** | Nothing: an open model (Gemma, Llama, Qwen) on a server you run | Enter its **Server URL** | [Run a local model](local-models.md) |
 | **ChatGPT plan** | Your ChatGPT Plus or Pro plan | **Sign in with ChatGPT** | [Use your ChatGPT plan](chatgpt.md) |
 | **OpenRouter** | OpenRouter credits (some models are free; the default is the open Gemma model) | **Connect OpenRouter**, or paste an API key | [Use OpenRouter](openrouter.md) |
-| **Claude plan** | Your Claude Pro or Max plan | Claude Code and the agent kit, after converting | [Finish the site with Claude Code](claude-code.md) |
+| **Claude plan** | Your Claude Pro or Max plan | Nothing to connect: convert, then run Claude Code on the repo | [Finish the site with Claude Code](claude-code.md) |
 | **No AI** | — | — | Default layout; leftover shortcodes listed in the report |
 
-Claude plans can only be used in Claude's own apps, so the **Claude plan** tile doesn't connect anything in WordPress.
-It points you to the agent kit instead.
+Claude plans can only be used in Claude's own apps, so choosing **Claude plan** doesn't connect anything in WordPress.
+WordPress converts with the default layout and turns on the agent kit, and the panel shows the commands that let
+Claude Code finish the site on your plan.
 
 ## Choose which AI steps run
 
-Under **AI steps** in the **AI model** card:
+At the bottom of **Settings → AI model**:
 
 - **Rebuild the theme's header, menu and footer as an Astro layout**
 - **Clean up dead shortcodes in posts**

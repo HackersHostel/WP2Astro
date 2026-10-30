@@ -7,9 +7,9 @@ difference. Files you or an agent edited in the repository are never overwritten
 ## Sync by hand
 
 1. Go to **WP2Astro**.
-2. Click **Sync now** in the **Sync** card.
-3. When it finishes, you see either "Synced. 3 file(s) changed, 0 removed." with a **View commit ↗** button, or
-   "Already up to date. Nothing changed since the last sync."
+2. On the **Overview** tab, click **Sync now**.
+3. When it finishes, you see either **Synced to GitHub** ("3 file(s) changed, 0 removed.") with a **View commit**
+   button, or **Already up to date** ("Nothing changed since the last sync.").
 
 If nothing changed, no commit is made.
 
@@ -36,10 +36,11 @@ repository, menu and category changes in WordPress no longer reach it until you 
 ## Turn on auto-sync
 
 1. Connect GitHub first (see [Connect GitHub](github.md)).
-2. In the **What to build** card, under **Keep in sync**, tick **Sync to GitHub automatically**.
+2. In **Settings → Keep in sync**, turn on **Sync to GitHub automatically**.
 3. Click **Save settings**.
 
-The header of the dashboard now shows **Auto-sync: on**.
+Or flip the **Auto-sync** switch under **Connections** on the **Overview** tab. The status card then shows
+**Auto-sync is on**.
 
 From then on, publishing, updating, unpublishing or deleting a post, page or exported custom post type starts one sync
 about two minutes later. More edits within those two minutes join the same sync. If another sync is running, the new
@@ -66,13 +67,13 @@ in the WordPress handbook.
 
 ## See past runs
 
-The **Recent runs** card lists the last 20 runs:
+The **Activity** tab lists the last 20 runs, and the **Overview** tab shows the latest five:
 
 | Column | Shows |
 |---|---|
 | **When** | How long ago it started (hover for the date and time) |
 | **How** | **Button**, **Auto-sync** or **WP-CLI** |
-| **Result** | Entries converted and files changed, removed and kept, or why it failed |
+| **Result** | **Synced to GitHub**, **Nothing to push**, **Converted to a zip**, **Stopped** or **Run failed**, with the files changed, removed and kept, or why it failed |
 | (links) | **Commit ↗** and, for 24 hours, **Zip** |
 
 `wp wp2astro status` shows the same list on the command line.

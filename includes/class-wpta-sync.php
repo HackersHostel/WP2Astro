@@ -10,6 +10,7 @@ class WPTA_Sync {
 	const MANIFEST = 'wpta_sync_manifest';
 	const RUNS     = 'wpta_runs';
 	const LOCK     = 'wpta_running';
+	const CHANGED  = 'wpta_changed';
 	const HOOK     = 'wpta_auto_sync';
 	const RUN_HOOK = 'wpta_run_job';
 	const DELAY    = 120;
@@ -171,14 +172,26 @@ class WPTA_Sync {
 
 	public static function on_status( string $new, string $old, WP_Post $post ): void {
 		if ( ( 'publish' === $new || 'publish' === $old ) && $new !== $old && self::watched( $post ) ) {
+			self::touch();
 			self::schedule();
 		}
 	}
 
 	public static function on_update( int $id, WP_Post $after, WP_Post $before ): void {
 		if ( 'publish' === $after->post_status && 'publish' === $before->post_status && self::watched( $after ) ) {
+			self::touch();
 			self::schedule();
 		}
+	}
+
+	/** Remember when published content last changed, so the dashboard can say a sync is due. */
+	private static function touch(): void {
+		update_option( self::CHANGED, time(), false );
+	}
+
+	/** When published content last changed (0 if never seen). */
+	public static function changed(): int {
+		return (int) get_option( self::CHANGED, 0 );
 	}
 
 	/** Debounced: one sync a couple of minutes after the last burst of edits. */

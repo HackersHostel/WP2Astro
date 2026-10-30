@@ -5,7 +5,7 @@ sync. It uses GitHub's API directly, so your server doesn't need `git`. Without 
 
 ## Connect with one click
 
-1. Go to **WP2Astro** and find the **GitHub** card.
+1. Go to **WP2Astro** and open **Settings → GitHub**.
 2. Click **Connect GitHub**. A code such as `ABCD-1234` appears.
 3. Click **Copy**, then **Open github.com/login/device ↗**.
 4. On GitHub, paste the code, click **Continue**, and then **Authorize**.
@@ -27,7 +27,7 @@ Use a token if you prefer to limit access, or if **Connect GitHub** isn't availa
    - **Administration:** Read and write (to create the repository)
    - **Contents:** Read and write (to push)
 5. Click **Generate token** and copy it.
-6. In the **GitHub** card, open **Use a personal access token instead**, paste the token and click
+6. In **Settings → GitHub**, open **Use a personal access token instead**, paste the token and click
    **Save settings**.
 
 WP2Astro checks the token right away and shows whose it is. If GitHub refuses it, you see "GitHub didn't accept that
@@ -40,7 +40,7 @@ When the token expires, syncs stop with a GitHub error. Create a new token and p
 | Setting | What it does |
 |---|---|
 | **Repository** | The repository name, under your GitHub account. The default is your site name followed by `-astro`. |
-| **Private** | Creates a private repository. Ticked by default. |
+| **Private repository** | Creates a private repository. On by default. |
 
 The repository is created on the first run if it doesn't exist. If it already exists, WP2Astro uses it: the first
 sync overwrites files that have the same path as generated files (such as `README.md`) and leaves other files alone.

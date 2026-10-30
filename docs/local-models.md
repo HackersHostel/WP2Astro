@@ -27,7 +27,7 @@ model server instead of an AI company.
 
 ## Connect WP2Astro
 
-1. Go to **WP2Astro** and, in the **AI model** card, select **Local model**.
+1. Go to **WP2Astro** and, in **Settings → AI model**, select **Local model**.
 2. In **Server URL**, enter your server's API address. For Ollama on the same machine, keep
    `http://localhost:11434/v1`.
 3. Click **Load models**, then click the **Model** field and pick one, or type a model ID such as `gemma4`.

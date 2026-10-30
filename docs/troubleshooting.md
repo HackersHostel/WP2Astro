@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Start with the log. When a run stops, the message under the progress bar turns red and the **Log** below it opens. Each line is one
+Start with the log. When a run stops, the progress card says **The run stopped**, the message under it turns red, and the **Log** below the steps opens. Each line is one
 step, and the last line says what went wrong. Then check `CONVERSION_REPORT.md` in the repository or zip, which lists
 anything that needs a look even when the run succeeds.
 
@@ -96,7 +96,7 @@ delete files. Sync stopped; nothing was changed."
 remove files from the repository, so WP2Astro stops instead.
 
 **What to do:** remove files the site doesn't need from the repository (large media, for example), or sync to a new,
-empty repository by changing **Repository** in the **GitHub** card.
+empty repository by changing **Repository** in **Settings → GitHub**.
 
 ## Another conversion is running
 

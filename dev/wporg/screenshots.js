@@ -35,12 +35,34 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   await page.fill('#user_pass', 'admin');
   await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
 
-  // Settings for the shots: OpenRouter with a key (the mock answers), GitHub through the mock.
+  // 1. The first-run setup. Show it again if this site has converted before.
   await dashboard();
-  await page.check('input[name="wpta[provider]"][value="openrouter"]');
+  const again = await page.getAttribute('a[href*="action=wpta_setup"][href*="again=1"]', 'href').catch(() => null);
+  if (again) await page.goto(again, { waitUntil: 'networkidle' });
+  await page.check('input[name="wpta[provider]"][value="openrouter"]', { force: true });
+  const key = page.locator('[data-provider="openrouter"] .wpta-keyfield');
+  if (!(await key.evaluate((d) => d.open))) await key.locator('summary').click();
   await page.fill('#wpta-key-openrouter', 'sk-or-test');
   await page.fill('#wpta-model-openrouter', 'google/gemma-4-31b-it');
-  await Promise.all([page.waitForNavigation(), page.click('#ai .wpta-save button')]);
+  await page.screenshot({ path: shot(1), fullPage: true });
+
+  // Finish the setup: GitHub through the mock, then the first conversion.
+  await page.click('[data-wizard="next"]');
+  await page.waitForSelector('[data-pane="2"]:not([hidden])');
+  const token = page.locator('[data-pane="2"] .wpta-token');
+  if (await token.count()) {
+    if (!(await token.evaluate((d) => d.open))) await token.locator('summary').click();
+    await page.fill('input[name="wpta[github_token]"]', 'ghp_test');
+  }
+  await page.click('[data-wizard="next"]');
+  await page.waitForSelector('[data-pane="3"]:not([hidden])');
+  await page.click('[data-wizard="next"]');
+  await page.waitForFunction(() => !document.querySelector('#wpta-result').hidden, null, { timeout: 120000 });
+
+  // 2. The Overview tab.
+  await dashboard('#overview');
+  await sleep(500); // OpenRouter balance.
+  await page.screenshot({ path: shot(2) });
 
   // 3. Connect GitHub with a one-time code (GitHub's device endpoints are faked; nothing is sent to github.com).
   await page.evaluate(() => fetch(WPTA.ajax, { method: 'POST', credentials: 'same-origin', body: new URLSearchParams({ action: 'wpta_gh_disconnect', _ajax_nonce: WPTA.nonce }) }));
@@ -52,19 +74,12 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   await page.unroute(`${WP}/wp-admin/admin-ajax.php`);
 
   await dashboard('#github');
-  await page.click('#github details summary');
+  await page.click('#github .wpta-token summary');
   await page.fill('input[name="wpta[github_token]"]', 'ghp_test');
-  await Promise.all([page.waitForNavigation(), page.click('#github .wpta-save button')]);
+  await Promise.all([page.waitForNavigation(), page.click('.wpta-savebar button[type="submit"]')]);
 
-  // 1. The dashboard.
-  await dashboard();
-  await sleep(500); // OpenRouter balance.
-  await page.screenshot({ path: shot(1) });
-
-  // 2. The AI model card: ChatGPT and OpenRouter side by side in the provider picker, OpenRouter connected.
-  await page.locator('#ai').screenshot({ path: shot(2) });
-
-  // 4. A sync in progress. Steps are slowed down so the bar is caught mid-run.
+  // 4. A sync in progress. Steps are slowed down so the ring is caught mid-run.
+  await dashboard('#overview');
   await page.route(`${WP}/wp-admin/admin-ajax.php`, async (route) => {
     if ((route.request().postData() || '').includes('action=wpta_step')) await sleep(700);
     return route.fallback();
@@ -72,13 +87,14 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   await page.click('#wpta-start');
   await page.waitForFunction(() => /Copying media|Rebuilding|Cleaning|Packaging|Comparing|Uploading/.test(document.querySelector('.wpta-phase').textContent));
   await page.evaluate(() => { document.querySelector('.wpta-logbox').open = true; });
-  await page.locator('#convert').screenshot({ path: shot(4) });
+  await page.locator('#wpta-run').screenshot({ path: shot(4) });
   await page.waitForFunction(() => !document.querySelector('#wpta-result').hidden, null, { timeout: 120000 });
   await page.unroute(`${WP}/wp-admin/admin-ajax.php`);
 
-  // 5. Recent runs.
-  await dashboard('#history');
-  await page.locator('#history').screenshot({ path: shot(5) });
+  // 5. Settings.
+  await dashboard('#settings');
+  await sleep(300);
+  await page.screenshot({ path: shot(5) });
 
   // 6. Before and after: the same post on WordPress and on the Astro build.
   const grab = async (url) => {

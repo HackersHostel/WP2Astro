@@ -3,7 +3,7 @@
 WP2Astro is a WordPress plugin that turns your site into a fast Astro site with the same URLs and the same look,
 pushes it to GitHub and keeps it in sync. These pages show you how to use it, one task per page.
 
-Inside WordPress, click **Help** in the top-right corner of the **WP2Astro** screen for a short version of each page.
+Inside WordPress, click **Help** next to the tabs at the top of the **WP2Astro** screen for a short version of each page.
 
 ## For site owners
 

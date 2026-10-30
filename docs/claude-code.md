@@ -16,7 +16,7 @@ To use Claude models inside the plugin, pick **OpenRouter** and choose a Claude 
 
 ## What the agent kit contains
 
-Leave **Agent kit** ticked in the **What to build** card (it is on by default). Each conversion then adds:
+Leave **Agent kit** on in **Settings → What to build** (it is on by default, and always on with **Claude plan**). Each conversion then adds:
 
 | File | For |
 |---|---|
@@ -31,7 +31,7 @@ default, the first task is to rebuild the layout.
 
 ## Finish the site
 
-1. Convert with any option in the **AI model** card. **No AI** is fine.
+1. Convert with any AI option. **Claude plan** or **No AI** is fine.
 2. Clone the repository to your computer and open it in Claude Code:
 
    ```bash

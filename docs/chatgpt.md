@@ -13,14 +13,14 @@ Each WordPress site registers as its own app the first time someone signs in.
 
 ## Sign in
 
-1. Go to **WP2Astro** and, in the **AI model** card, select **ChatGPT plan**.
+1. Go to **WP2Astro** and, in **Settings → AI model**, select **ChatGPT plan**.
 2. Click **Sign in with ChatGPT**. A ChatGPT tab opens, and a paste field appears in WordPress.
 3. In the ChatGPT tab, sign in if asked and approve WP2Astro.
 4. The tab now tries to open an address that starts with `http://127.0.0.1:1455/auth/callback` and shows an error
    such as "This site can't be reached". **This is expected.** See [Why you see a 127.0.0.1 page](#why-you-see-a-127001-page).
 5. Copy the full address from that tab's address bar.
 6. Back in WordPress, paste it into the field and click **Finish sign-in**.
-7. The card shows **✓ Signed in as** your email, and the **Model** list fills in. Pick a model.
+7. WP2Astro shows **✓ Signed in as** your email, and the **Model** list fills in. Pick a model.
 8. Click **Test** to check the connection, then **Save settings**.
 
 The address is only valid for this sign-in attempt and for 30 minutes. If you see "This sign-in expired" or "That
@@ -39,7 +39,7 @@ pasted address must match the sign-in attempt you started (state check).
 
 Every AI request counts toward your ChatGPT plan, the same as using ChatGPT itself.
 
-- Click **Usage & limits ↗** in the **AI model** card to open
+- Click **Usage & limits ↗** in **Settings → AI model** to open
   [ChatGPT → Settings → Usage](https://chatgpt.com/settings/usage). There you can see what WP2Astro used and set a
   limit for it.
 - AI results are cached, so a sync only uses your plan again when the theme, the menu or a post with dead shortcodes
@@ -50,7 +50,7 @@ still finishes, with the default layout. Try again later, raise the limit, or sw
 
 ## Sign out
 
-Click **Sign out** in the **AI model** card. WP2Astro asks OpenAI to end the session, then deletes the tokens. If
+Click **Sign out** in **Settings → AI model**. WP2Astro asks OpenAI to end the session, then deletes the tokens. If
 OpenAI doesn't confirm it, you can also remove the app in ChatGPT under **Settings → Security**.
 
 ## How your tokens are stored

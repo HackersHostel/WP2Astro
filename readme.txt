@@ -53,13 +53,13 @@ WP2Astro is free and open source, made by [Hackers Hostel](https://hackershostel
 2. Click **Activate Plugin**.
 3. Click **WP2Astro** in the admin menu.
 
-Then follow the cards on the dashboard:
+Then follow the three-step setup:
 
-1. **AI model** (optional): select **Local model** and enter your model server's address, select **ChatGPT plan** and click **Sign in with ChatGPT**, select **OpenRouter** and click **Connect OpenRouter**, or select **No AI**. Click **Save settings**.
-2. **GitHub** (optional): click **Connect GitHub**, enter the code on github.com and approve. Without GitHub you download a zip.
-3. **Convert**: click **Convert to Astro**. When it finishes, click **Open repo** or **Download .zip**.
+1. **Choose AI** (optional): select **Local model** and enter your model server's address, select **ChatGPT plan** and click **Sign in with ChatGPT**, select **Claude plan** to finish the site in Claude Code, select **OpenRouter** and click **Connect OpenRouter**, or select **No AI**. Click **Continue**.
+2. **Connect GitHub** (optional): click **Connect GitHub**, enter the code on github.com and approve, or click **Skip — download a zip**.
+3. **Convert**: click **Convert to Astro**. When it finishes, click **Open repo** or **Download zip**.
 
-Later runs are a click on **Sync now**, or automatic with **Sync to GitHub automatically**.
+Later runs are a click on **Sync now** on the **Overview** tab, or automatic with **Sync to GitHub automatically**.
 
 Requirements: WordPress 6.5 or later, PHP 8.0 or later, and an administrator account. To build or run the generated site, you or your host need Node.js 22.23.4 or later.
 
@@ -109,11 +109,11 @@ Ask in [Q&A on GitHub](https://github.com/HackersHostel/wp2astro/discussions/cat
 
 == Screenshots ==
 
-1. The WP2Astro dashboard: pick an AI model, connect GitHub, choose what to build and convert.
-2. Use your ChatGPT plan with Sign in with ChatGPT, or connect OpenRouter and see your credit balance.
+1. The first-run setup: choose how AI helps (a local model, your ChatGPT or Claude plan, OpenRouter, or none).
+2. The Overview tab: status, Sync now, what was converted, your connections and the Claude Code commands.
 3. Connect GitHub with a one-time code.
-4. A sync in progress: only changed files are uploaded.
-5. Recent runs, with links to every commit.
+4. A sync in progress: each step, with a Stop button.
+5. Settings: AI model, GitHub, what to build and auto-sync on one page.
 6. Before and after: a WordPress site and its Astro version.
 
 == Changelog ==

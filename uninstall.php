@@ -5,7 +5,7 @@
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
-foreach ( array( 'wpta_settings', 'wpta_chatgpt', 'wpta_sync_manifest', 'wpta_runs', 'wpta_running', 'wpta_last_layout_log' ) as $option ) {
+foreach ( array( 'wpta_settings', 'wpta_chatgpt', 'wpta_sync_manifest', 'wpta_runs', 'wpta_running', 'wpta_last_layout_log', 'wpta_changed', 'wpta_setup_done' ) as $option ) {
 	delete_option( $option );
 }
 delete_site_transient( 'wpta_release' );

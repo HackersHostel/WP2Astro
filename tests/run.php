@@ -24,6 +24,7 @@ require __DIR__ . '/../includes/class-wpta-github.php';
 require __DIR__ . '/../includes/class-wpta-markdown.php';
 require __DIR__ . '/../includes/class-wpta-exporter.php';
 require __DIR__ . '/../includes/class-wpta-updater.php';
+require __DIR__ . '/../includes/class-wpta-admin.php';
 
 $fails = 0;
 $count = 0;
@@ -35,6 +36,27 @@ function check( string $name, $actual, $expected ): void {
 		echo "FAIL {$name}\n  expected: " . var_export( $expected, true ) . "\n  actual:   " . var_export( $actual, true ) . "\n";
 	}
 }
+
+/* ------------------------------------------------------------ Dashboard */
+
+$done  = array( 'status' => 'done', 'started' => 100, 'entries' => 20, 'files' => 81, 'repo' => 'https://github.com/a/b' );
+$state = fn( array $runs, int $changed = 0, bool $gh = true, bool $auto = false, string $running = '' ) => WPTA_Admin::hero_state( $runs, $changed, $gh, $auto, $running )['state'];
+check( 'hero: never run', $state( array() ), 'new' );
+check( 'hero: running wins', $state( array( $done ), 500, true, false, 'abcdefabcdef' ), 'running' );
+check( 'hero: last run failed', $state( array( array( 'status' => 'error', 'started' => 200, 'error' => 'x' ), $done ) ), 'failed' );
+check( 'hero: content changed after the last good run', $state( array( $done ), 150 ), 'behind' );
+check( 'hero: changes before the last run are synced', $state( array( $done ), 90 ), 'ok' );
+check( 'hero: zip only, then GitHub connected', $state( array( array( 'status' => 'done', 'started' => 100 ) ) ), 'new' );
+check( 'hero: zip only, no GitHub', $state( array( array( 'status' => 'done', 'started' => 100 ) ), 0, false ), 'ok' );
+check( 'hero: the last good run counts, not a running one', WPTA_Admin::hero_state( array( array( 'status' => 'running', 'started' => 300 ), $done ), 0, true, false, '' )['last'], $done );
+check( 'hero: auto-sync needs GitHub', WPTA_Admin::hero_state( array( $done ), 0, false, true, '' )['badge'], 'Up to date' );
+check( 'hero: auto-sync badge', WPTA_Admin::hero_state( array( $done ), 0, true, true, '' )['badge'], 'Auto-sync is on' );
+
+check( 'item: commit', WPTA_Admin::run_item( array( 'status' => 'done', 'commit' => 'c', 'changed' => 2, 'deleted' => 1, 'kept' => array( 'src/layouts/BaseLayout.astro' ) ) ), array( 'kind' => 'commit', 'title' => 'Synced to GitHub', 'text' => '2 files changed, 1 removed. Kept BaseLayout.astro, edited in the repo.' ) );
+check( 'item: nothing to push', WPTA_Admin::run_item( $done )['text'], 'All 81 files are already on GitHub.' );
+check( 'item: zip', WPTA_Admin::run_item( array( 'status' => 'done', 'entries' => 1, 'media' => 6 ) )['text'], '1 entry and 6 media files.' );
+check( 'item: stopped', WPTA_Admin::run_item( array( 'status' => 'error', 'error' => 'Stopped. Nothing was pushed.' ) )['title'], 'Stopped' );
+check( 'item: failed', WPTA_Admin::run_item( array( 'status' => 'error', 'error' => 'GitHub: 409' ) )['title'], 'Run failed' );
 
 /* ------------------------------------------------------------ Sync plan */
 
