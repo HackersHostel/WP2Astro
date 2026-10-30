@@ -410,17 +410,21 @@ interface Props {
         <p>&copy; {new Date().getFullYear()} {site.title}</p>
       </footer>
     </div>
-    {!(site.scripts || []).length && (
-      <script is:inline>
-        // The theme's own menu script wasn't found: open and close the menu on small screens.
-        document.querySelectorAll('.wp2astro-menu-toggle').forEach((button) => {
-          button.addEventListener('click', () => {
-            const open = button.closest('nav').classList.toggle('toggled');
-            button.setAttribute('aria-expanded', String(open));
-          });
-        });
-      </script>
-    )}
+    <script is:inline>
+      // Opens and closes the menu on small screens, unless the theme's own script already did on this click.
+      let before = null;
+      document.addEventListener('click', (e) => {
+        const nav = e.target.closest('.wp2astro-menu-toggle')?.closest('nav');
+        before = nav ? nav.classList.contains('toggled') : null;
+      }, true);
+      document.querySelectorAll('.wp2astro-menu-toggle').forEach((button) => {
+        const nav = button.closest('nav');
+        button.addEventListener('click', () => setTimeout(() => {
+          if (before === null || nav.classList.contains('toggled') !== before) return;
+          button.setAttribute('aria-expanded', String(nav.classList.toggle('toggled')));
+        }));
+      });
+    </script>
   </body>
 </html>
 
@@ -571,14 +575,15 @@ export async function getStaticPaths() {
   // A listing and its /page/2/, /page/3/… like WordPress, postsPerPage entries each.
   const listing = (path: string, list: any[], heading?: string, skipFirst = false) => {
     const total = Math.max(1, Math.ceil(list.length / per));
+    const dir = path.endsWith('/') ? path : `${path}/`; // /category/news → /category/news/page/2/
     for (let n = 1; n <= total; n++) {
       if (n === 1 && skipFirst) continue;
-      add(n === 1 ? path : `${path}page/${n}/`, {
+      add(n === 1 ? path : `${dir}page/${n}/`, {
         kind: 'list',
         posts: list.slice((n - 1) * per, n * per),
         heading,
-        prev: n > 1 ? (n === 2 ? path : `${path}page/${n - 1}/`) : undefined,
-        next: n < total ? `${path}page/${n + 1}/` : undefined,
+        prev: n > 1 ? (n === 2 ? path : `${dir}page/${n - 1}/`) : undefined,
+        next: n < total ? `${dir}page/${n + 1}/` : undefined,
       });
     }
   };

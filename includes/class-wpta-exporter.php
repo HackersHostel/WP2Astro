@@ -103,13 +103,7 @@ class WPTA_Exporter {
 		}
 
 		// Date archives (/2024/, /2024/01/) as WordPress builds them; only with pretty permalinks.
-		$dates = array();
-		if ( get_option( 'permalink_structure' ) ) {
-			$dates = array(
-				'year'  => str_replace( '1970', '{y}', self::rel_url( get_year_link( 1970 ) ) ),
-				'month' => str_replace( array( '1970', '/12/' ), array( '{y}', '/{m}/' ), self::rel_url( get_month_link( 1970, 12 ) ) ),
-			);
-		}
+		$dates = get_option( 'permalink_structure' ) ? self::date_patterns( self::rel_url( get_year_link( 1970 ) ), self::rel_url( get_month_link( 1970, 12 ) ) ) : array();
 
 		return array(
 			'title'        => $name,
@@ -137,6 +131,18 @@ class WPTA_Exporter {
 			),
 			'generator'    => WPTA_Settings::brand()['name'] . ' ' . WPTA_VERSION,
 		);
+	}
+
+	/**
+	 * Year and month archive patterns ("/{y}/", "/{y}/{m}/") from WordPress's links for December 1970, with or without
+	 * a trailing slash in the permalink structure. Paths end in a slash, like every other generated page. Pure (unit-tested).
+	 *
+	 * @return array{year:string, month:string}
+	 */
+	public static function date_patterns( string $year_link, string $month_link ): array {
+		$year  = preg_replace( '#/1970(?=/|$)#', '/{y}', $year_link );
+		$month = preg_replace( '#/\{y\}/12(?=/|$)#', '/{y}/{m}', preg_replace( '#/1970(?=/|$)#', '/{y}', $month_link ) );
+		return array( 'year' => trailingslashit( $year ), 'month' => trailingslashit( $month ) );
 	}
 
 	private static function menu(): array {

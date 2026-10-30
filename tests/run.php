@@ -13,6 +13,9 @@ function wp_strip_all_tags( $s ) {
 function esc_html( $s ) {
 	return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
 }
+function trailingslashit( $s ) {
+	return rtrim( (string) $s, '/\\' ) . '/';
+}
 function esc_url( $s ) {
 	return htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' );
 }
@@ -73,6 +76,12 @@ check( 'tree: only changed and deleted paths, sorted', WPTA_Sync::tree_changes( 
 	array( 'path' => 'new.md', 'mode' => '100644', 'type' => 'blob', 'sha' => 'n1' ),
 ) );
 check( 'tree: nothing to send when nothing changed', WPTA_Sync::tree_changes( WPTA_Sync::plan( array( 'a.md' => 'a1' ), array( 'a.md' => 'a1' ), array( 'a.md' => 'a1' ) ) ), array() );
+
+/* ----------------------------------------------------------- Date archives */
+
+check( 'dates: trailing-slash structure', WPTA_Exporter::date_patterns( '/1970/', '/1970/12/' ), array( 'year' => '/{y}/', 'month' => '/{y}/{m}/' ) );
+check( 'dates: no trailing slash (/%postname%)', WPTA_Exporter::date_patterns( '/1970', '/1970/12' ), array( 'year' => '/{y}/', 'month' => '/{y}/{m}/' ) );
+check( 'dates: with a front base', WPTA_Exporter::date_patterns( '/blog/1970/', '/blog/1970/12/' ), array( 'year' => '/blog/{y}/', 'month' => '/blog/{y}/{m}/' ) );
 
 /* -------------------------------------------------------- Netlify redirects */
 

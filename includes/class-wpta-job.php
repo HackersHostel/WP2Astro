@@ -559,7 +559,8 @@ class WPTA_Job {
 	 */
 	private function entry( int $id ): array {
 		$file = self::cache_dir() . '/entries/' . $id . '.json';
-		$key  = md5( get_post_field( 'post_modified_gmt', $id ) . '|' . $this->s['ctx'] );
+		// The permalink is in the key too: renaming a parent page moves its children without touching them.
+		$key = md5( get_post_field( 'post_modified_gmt', $id ) . '|' . WPTA_Exporter::permalink( get_post( $id ) ) . '|' . $this->s['ctx'] );
 		if ( ! empty( $this->s['opts']['cached'] ) && is_readable( $file ) ) {
 			$hit = json_decode( (string) file_get_contents( $file ), true );
 			if ( is_array( $hit ) && ( $hit['key'] ?? '' ) === $key && isset( $hit['entry']['markdown'], $hit['entry']['path'] ) ) {
@@ -623,6 +624,10 @@ class WPTA_Job {
 		$batch  = array_slice( $this->s['media'], $this->s['cursor'], self::MEDIA_BATCH );
 		$done   = 0;
 		foreach ( $batch as $rel ) {
+			// Checked before each file, so a failed upload that waited for its timeout ends the step too.
+			if ( $done > 0 && microtime( true ) > $until ) {
+				break;
+			}
 			++$done;
 			$src = WPTA_Exporter::media_file( $rel );
 			if ( '' === $src ) {
@@ -658,9 +663,6 @@ class WPTA_Job {
 					$this->s['files'][ 'public' . $rel ] = WPTA_GitHub::blob_sha_file( $dest );
 				}
 				++$this->s['report']['media'];
-			}
-			if ( microtime( true ) > $until ) {
-				break;
 			}
 		}
 		if ( $cdn ) {

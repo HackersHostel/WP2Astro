@@ -117,7 +117,7 @@ class WPTA_Storage {
 			$url,
 			array(
 				'method'  => 'PUT',
-				'timeout' => 120,
+				'timeout' => (int) min( 120, 20 + strlen( $body ) / MB_IN_BYTES * 2 ), // ~2 s per MB, so a dead endpoint fails fast.
 				'headers' => $headers,
 				'body'    => $body,
 			)
