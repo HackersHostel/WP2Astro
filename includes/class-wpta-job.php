@@ -12,6 +12,9 @@ class WPTA_Job {
 	const MEDIA_BATCH = 100;
 	const BLOB_BATCH  = 25;
 
+	/** Exception code of create() when another run holds the lock. */
+	const BUSY = 409;
+
 	/** AI cache entries not used for this long are removed; a cache hit refreshes the file's time. */
 	const CACHE_TTL = 30 * DAY_IN_SECONDS;
 
@@ -63,8 +66,10 @@ class WPTA_Job {
 	/* ------------------------------------------------------------ Create */
 
 	/**
+	 * Start a run. Throws a RuntimeException with code BUSY when another run holds the lock.
+	 *
 	 * @param string $trigger manual | auto | cli
-	 * @param array  $opts    ai (bool), github (bool), zip (bool)
+	 * @param array  $opts    ai (bool), github (bool), zip (bool), force (bool: take the lock from a run that looks alive)
 	 */
 	public static function create( string $trigger, array $opts = array() ): self {
 		self::cleanup_old();
@@ -75,10 +80,22 @@ class WPTA_Job {
 				'github' => '' !== $s['github_token'],
 				'zip'    => 'auto' !== $trigger,
 				'keep'   => 'auto' === $trigger ? self::AUTO_KEEP : array(),
+				// Reuse Markdown of unchanged posts. The button rebuilds everything, since shortcodes can show
+				// changing content (latest posts…); auto-sync and `wp wp2astro convert --cached` reuse it.
+				'cached' => 'auto' === $trigger,
 			),
 			$opts
 		);
-		$id  = strtolower( wp_generate_password( 12, false ) );
+		$id = strtolower( wp_generate_password( 12, false ) );
+		if ( ! WPTA_Sync::acquire( $id, ! empty( $opts['force'] ) ) ) {
+			throw new RuntimeException( 'Another conversion is running right now (job ' . WPTA_Sync::running() . '). Wait for it to finish.', self::BUSY );
+		}
+		// This run holds the lock, so any run still marked as running died or was taken over.
+		foreach ( WPTA_Sync::runs() as $rid => $r ) {
+			if ( 'running' === ( $r['status'] ?? '' ) ) {
+				WPTA_Sync::record( (string) $rid, array( 'status' => 'error', 'finished' => time(), 'error' => 'Stopped: it didn’t finish (its tab was closed, or a newer run took over). Nothing was pushed.' ) );
+			}
+		}
 		$job = new self( array( 'id' => $id, 'trigger' => $trigger, 'opts' => $opts ) );
 		wp_mkdir_p( $job->dir() . '/site' );
 		wp_mkdir_p( self::cache_dir() );
@@ -87,7 +104,6 @@ class WPTA_Job {
 		$job->save();
 
 		$llm = $opts['ai'] ? WPTA_LLM::from_settings() : null;
-		WPTA_Sync::lock( $id );
 		WPTA_Sync::record(
 			$id,
 			array(
@@ -111,11 +127,11 @@ class WPTA_Job {
 
 	public static function ajax_start(): void {
 		self::guard();
-		$busy = WPTA_Sync::running();
-		if ( $busy && empty( $_POST['force'] ) ) {
-			wp_send_json_error( array( 'message' => 'Another conversion is running right now (job ' . $busy . '). Wait for it to finish.', 'busy' => true ) );
+		try {
+			$job = self::create( 'manual', array( 'force' => ! empty( $_POST['force'] ) ) );
+		} catch ( RuntimeException $e ) {
+			wp_send_json_error( array( 'message' => $e->getMessage(), 'busy' => self::BUSY === $e->getCode() ) );
 		}
-		$job = self::create( 'manual' );
 		wp_send_json_success( array( 'job' => $job->id(), 'log' => array( 'Job ' . $job->id() . ' started.' ) ) );
 	}
 
@@ -129,8 +145,10 @@ class WPTA_Job {
 		if ( ! $job ) {
 			wp_send_json_error( array( 'message' => 'Job not found. Start again.' ), 404 );
 		}
-		$job->run_step();
-		wp_send_json_success( $job->status() );
+		$stepped           = $job->run_step();
+		$status            = $job->status();
+		$status['waiting'] = ! $stepped; // Another request is stepping this job; ask again in a moment.
+		wp_send_json_success( $status );
 	}
 
 	public static function ajax_runs(): void {
@@ -198,7 +216,13 @@ class WPTA_Job {
 				'flagged' => array(),
 				'paths'   => array(),
 				'redirects' => array(),
-				'report'  => array( 'entries' => 0, 'types' => array(), 'media' => 0, 'media_failed' => array(), 'cleaned' => array(), 'cleanup_failed' => array(), 'layout' => array(), 'unconverted' => array(), 'seo' => '' ),
+				'query'   => array(),
+				'media_in' => array(),
+				'fixups'  => array(),
+				'lfs'     => array(),
+				'zipping' => array(),
+				'ctx'     => '',
+				'report'  => array( 'entries' => 0, 'types' => array(), 'media' => 0, 'media_failed' => array(), 'cleaned' => array(), 'cleanup_failed' => array(), 'layout' => array(), 'unconverted' => array(), 'seo' => '', 'reused' => 0 ),
 				'files'   => array(),
 				'repo'    => null,
 				'remote'  => null,
@@ -248,10 +272,16 @@ class WPTA_Job {
 	}
 
 	private function progress(): int {
-		$order = array( 'init' => 0, 'content' => 5, 'media' => 45, 'ai_layout' => 60, 'ai_cleanup' => 70, 'package' => 82, 'github' => 86, 'github_upload' => 88, 'github_commit' => 98, 'done' => 100, 'error' => 100 );
+		$order = array( 'init' => 0, 'content' => 5, 'media' => 45, 'ai_layout' => 60, 'ai_cleanup' => 70, 'package' => 80, 'zip' => 82, 'github' => 86, 'github_upload' => 88, 'github_commit' => 98, 'done' => 100, 'error' => 100 );
 		$p     = $order[ $this->s['phase'] ] ?? 0;
 		if ( 'content' === $this->s['phase'] && $this->s['ids'] ) {
 			$p += (int) ( 40 * $this->s['cursor'] / count( $this->s['ids'] ) );
+		}
+		if ( 'media' === $this->s['phase'] && $this->s['media'] ) {
+			$p += (int) ( 15 * $this->s['cursor'] / count( $this->s['media'] ) );
+		}
+		if ( 'zip' === $this->s['phase'] && $this->s['zipping'] ) {
+			$p += (int) ( 4 * $this->s['cursor'] / count( $this->s['zipping'] ) );
 		}
 		if ( 'github_upload' === $this->s['phase'] && ! empty( $this->s['plan']['upload'] ) ) {
 			$p += (int) ( 10 * count( $this->s['uploaded'] ) / count( $this->s['plan']['upload'] ) );
@@ -259,52 +289,108 @@ class WPTA_Job {
 		return min( 100, $p );
 	}
 
+	/** Write a project file and remember its git blob id, so packaging doesn't read every file again. */
 	private function write( string $rel, string $contents ): void {
 		$path = $this->site_dir() . '/' . $rel;
 		wp_mkdir_p( dirname( $path ) );
 		file_put_contents( $path, $contents );
+		$this->s['files'][ $rel ] = WPTA_GitHub::blob_sha( $contents );
 	}
 
 	/* ------------------------------------------------------------- Running */
 
-	/** One step, with errors turned into an error phase. Saves state. */
-	public function run_step(): void {
+	/**
+	 * One step, with errors turned into an error phase. Saves state.
+	 * Only one request steps a job at a time (two tabs, or a tab and cron): the others return false and change nothing.
+	 */
+	public function run_step(): bool {
 		if ( $this->done() ) {
-			return;
+			return true;
 		}
-		if ( function_exists( 'set_time_limit' ) ) {
-			@set_time_limit( 600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		$guard = $this->step_lock( false );
+		if ( ! $guard ) {
+			return false;
 		}
-		WPTA_Sync::lock( $this->id() );
 		try {
-			$this->step();
-		} catch ( Throwable $e ) {
-			$this->s['phase'] = 'error';
-			$this->say( 'Error: ' . $e->getMessage() );
-			$this->s['result']['error'] = $e->getMessage();
+			$this->reload(); // Another request may have stepped this job since it was loaded.
+			if ( $this->done() ) {
+				return true;
+			}
+			if ( function_exists( 'set_time_limit' ) ) {
+				@set_time_limit( 600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+			}
+			if ( ! WPTA_Sync::holds( $this->id() ) ) {
+				// A newer run took the lock ("Start anyway", or this one sat idle for 10 minutes). Don't race it.
+				$this->s['phase']           = 'error';
+				$this->s['result']['error'] = 'Stopped: a newer run took over. Nothing was pushed.';
+				$this->say( 'Stopped: a newer run took over.' );
+			} else {
+				WPTA_Sync::heartbeat( $this->id() );
+				try {
+					$this->step();
+				} catch ( Throwable $e ) {
+					$this->s['phase'] = 'error';
+					$this->say( 'Error: ' . $e->getMessage() );
+					$this->s['result']['error'] = $e->getMessage();
+				}
+			}
+			if ( $this->done() ) {
+				$this->finish();
+			}
+			$this->save();
+		} finally {
+			flock( $guard, LOCK_UN );
+			fclose( $guard );
 		}
-		if ( $this->done() ) {
-			$this->finish();
+		return true;
+	}
+
+	/** An exclusive lock on this job's folder. $wait: block until it is free (stop), or give up at once (steps). */
+	private function step_lock( bool $wait ) {
+		$fh = fopen( $this->dir() . '/step.lock', 'c' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		if ( ! $fh ) {
+			throw new RuntimeException( 'Could not open the job folder.' );
 		}
-		$this->save();
+		if ( ! flock( $fh, $wait ? LOCK_EX : LOCK_EX | LOCK_NB ) ) {
+			fclose( $fh );
+			return false;
+		}
+		return $fh;
+	}
+
+	private function reload(): void {
+		$file  = $this->dir() . '/state.json';
+		$state = is_readable( $file ) ? json_decode( (string) file_get_contents( $file ), true ) : null;
+		if ( is_array( $state ) ) {
+			$this->s = ( new self( $state ) )->s;
+		}
 	}
 
 	public function stop(): void {
-		if ( $this->done() ) {
-			return;
+		$guard = $this->step_lock( true );
+		try {
+			$this->reload();
+			if ( $this->done() ) {
+				return;
+			}
+			$this->s['phase']           = 'error';
+			$this->s['result']['error'] = 'Stopped. Nothing was pushed.';
+			$this->say( 'Stopped by ' . wp_get_current_user()->user_login . '.' );
+			$this->finish();
+			$this->save();
+		} finally {
+			flock( $guard, LOCK_UN );
+			fclose( $guard );
 		}
-		$this->s['phase']           = 'error';
-		$this->s['result']['error'] = 'Stopped. Nothing was pushed.';
-		$this->say( 'Stopped by ' . wp_get_current_user()->user_login . '.' );
-		$this->finish();
-		$this->save();
 	}
 
 	/** Run steps for up to $seconds (cron and CLI). */
 	public function run_for( int $seconds, ?callable $on_log = null ): void {
 		$until = microtime( true ) + $seconds;
 		do {
-			$this->run_step();
+			if ( ! $this->run_step() ) {
+				sleep( 1 ); // Another request holds this job's step lock.
+			}
 			if ( $on_log ) {
 				foreach ( $this->take_log() as $line ) {
 					$on_log( $line, $this->progress() );
@@ -361,6 +447,9 @@ class WPTA_Job {
 			case 'package':
 				$this->phase_package();
 				break;
+			case 'zip':
+				$this->phase_zip();
+				break;
 			case 'github':
 				$this->phase_github();
 				break;
@@ -382,10 +471,11 @@ class WPTA_Job {
 		file_put_contents( $this->dir() . '/home.html', $home );
 		$this->say( $home ? 'Fetched the rendered homepage.' : 'Could not fetch the homepage over HTTP (loopback); continuing without it.' );
 
-		$sheets = WPTA_Exporter::copy_theme( $this->site_dir(), $home );
-		$this->say( 'Copied theme assets (' . wp_get_theme()->get( 'Name' ) . '), ' . count( $sheets ) . ' stylesheet(s).' );
+		$sheets  = WPTA_Exporter::copy_theme( $this->site_dir(), $home );
+		$scripts = WPTA_Exporter::theme_scripts( $this->site_dir(), $home );
+		$this->say( 'Copied theme assets (' . wp_get_theme()->get( 'Name' ) . '), ' . count( $sheets ) . ' stylesheet(s)' . ( $scripts ? ', ' . count( $scripts ) . ' script(s)' : '' ) . '.' );
 
-		$site            = WPTA_Exporter::site_data( $sheets );
+		$site            = WPTA_Exporter::site_data( $sheets, $scripts );
 		$this->s['site'] = $site;
 		$this->write( 'src/site.json', wp_json_encode( $site, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "\n" );
 		foreach ( WPTA_Scaffold::files( $site ) as $rel => $contents ) {
@@ -399,6 +489,14 @@ class WPTA_Job {
 			$this->say( 'Reading titles and descriptions from ' . $seo . '.' );
 		}
 
+		$this->s['media_mode'] = WPTA_Media::mode();
+		if ( 'cdn' === $this->s['media_mode'] ) {
+			$missing = WPTA_Storage::missing( WPTA_Storage::config() );
+			if ( $missing ) {
+				throw new RuntimeException( $missing . ' Fill it in under Settings → Media, or pick another option there.' );
+			}
+		}
+		$this->s['ctx']   = self::cache_context( $site );
 		$this->s['ids']   = array_map( 'intval', WPTA_Exporter::entry_ids() );
 		$this->s['phase'] = 'content';
 		$types            = array_diff( WPTA_Exporter::post_types(), array( 'post', 'page' ) );
@@ -409,15 +507,18 @@ class WPTA_Job {
 		$batch = array_slice( $this->s['ids'], $this->s['cursor'], self::ENTRY_BATCH );
 		$media = array_flip( $this->s['media'] );
 		foreach ( $batch as $id ) {
-			$e    = WPTA_Exporter::entry( $id );
+			$e    = $this->entry( (int) $id );
 			$path = $e['path'];
 			if ( isset( $this->s['paths'][ $path ] ) ) {
 				$path = preg_replace( '/\.md$/', '-' . $id . '.md', $path );
 			}
 			$this->s['paths'][ $path ] = $e['permalink'];
+			// ?p=123 and ?page_id=7 links, collected here so the last step doesn't load every post again.
+			$this->s['query'][ ( 'page' === $e['type'] ? 'page_id' : 'p' ) . '=' . $id ] = $e['permalink'];
 			$this->write( $path, $e['markdown'] );
 			foreach ( $e['media'] as $m ) {
-				$media[ $m ] = true;
+				$media[ $m ]                    = true;
+				$this->s['media_in'][ $m ][] = $path;
 			}
 			foreach ( $e['redirects'] as $from => $to ) {
 				$this->s['redirects'][ $from ] = $to;
@@ -435,9 +536,13 @@ class WPTA_Job {
 		$this->say( sprintf( 'Converted %d / %d entries to Markdown.', $this->s['cursor'], count( $this->s['ids'] ) ) );
 
 		if ( $this->s['cursor'] >= count( $this->s['ids'] ) ) {
-			$redirects = WPTA_Exporter::redirects( $this->s['redirects'], array_values( $this->s['paths'] ), $this->s['site'] );
+			if ( $this->s['report']['reused'] ) {
+				$this->say( sprintf( 'Reused %d unchanged entries from the cache.', $this->s['report']['reused'] ) );
+			}
+			$redirects = WPTA_Exporter::redirects( $this->s['redirects'], array_values( $this->s['paths'] ), $this->s['site'], $this->s['query'] );
 			$this->write( 'redirects.json', wp_json_encode( $redirects, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) . "\n" );
 			$this->write( 'public/_redirects', WPTA_Exporter::redirects_file( $redirects ) );
+			$this->write( 'netlify.toml', WPTA_Exporter::netlify_toml( $redirects ) );
 			$this->s['report']['redirects'] = count( $redirects['paths'] ) + count( $redirects['query'] );
 			$this->s['cursor']              = 0;
 			$this->s['phase']               = 'media';
@@ -448,21 +553,147 @@ class WPTA_Job {
 		}
 	}
 
-	private function phase_media(): void {
-		$batch = array_slice( $this->s['media'], $this->s['cursor'], self::MEDIA_BATCH );
-		foreach ( $batch as $rel ) {
-			$err = WPTA_Exporter::copy_media( $rel, $this->site_dir() );
-			if ( '' === $err ) {
-				++$this->s['report']['media'];
-			} else {
-				$this->s['report']['media_failed'][] = $rel . ' — ' . $err;
+	/**
+	 * One entry as Markdown. With opts.cached, an entry whose post and output settings haven't changed comes from
+	 * uploads/wp2astro/cache/entries/ instead of running the_content again.
+	 */
+	private function entry( int $id ): array {
+		$file = self::cache_dir() . '/entries/' . $id . '.json';
+		// The permalink is in the key too: renaming a parent page moves its children without touching them.
+		$key = md5( get_post_field( 'post_modified_gmt', $id ) . '|' . WPTA_Exporter::permalink( get_post( $id ) ) . '|' . $this->s['ctx'] );
+		if ( ! empty( $this->s['opts']['cached'] ) && is_readable( $file ) ) {
+			$hit = json_decode( (string) file_get_contents( $file ), true );
+			if ( is_array( $hit ) && ( $hit['key'] ?? '' ) === $key && isset( $hit['entry']['markdown'], $hit['entry']['path'] ) ) {
+				touch( $file ); // Keeps it out of the 30-day cleanup.
+				++$this->s['report']['reused'];
+				return $hit['entry'];
 			}
 		}
-		$this->s['cursor'] += count( $batch );
-		$this->say( sprintf( 'Copied media %d / %d.', $this->s['cursor'], count( $this->s['media'] ) ) );
+		$e = WPTA_Exporter::entry( $id );
+		wp_mkdir_p( dirname( $file ) );
+		file_put_contents( $file, wp_json_encode( array( 'key' => $key, 'entry' => $e ) ) );
+		return $e;
+	}
+
+	/** Everything besides the post itself that changes an entry's Markdown. A change rebuilds every entry. */
+	private static function cache_context( array $site ): string {
+		$s = WPTA_Settings::get();
+		return md5(
+			(string) wp_json_encode(
+				array(
+					WPTA_VERSION,
+					array( $s['seo'], $s['cpts'], $s['fields'] ),
+					WPTA_Media::mode( $s ),
+					WPTA_Media::base( WPTA_Media::mode( $s ) ),
+					get_option( 'permalink_structure' ),
+					home_url(),
+					wp_get_upload_dir()['baseurl'],
+					get_stylesheet(),
+					get_template(),
+					get_option( 'active_plugins' ),
+					$site['categories'],
+					$site['tags'],
+					$site['authors'],
+				)
+			)
+		);
+	}
+
+	/**
+	 * Media, by mode: copied into the project (repo, lfs), uploaded to object storage (cdn), or left on WordPress.
+	 * Files that can't be copied or uploaded keep their WordPress URL and are listed in the report.
+	 */
+	private function phase_media(): void {
+		$mode = $this->s['media_mode'] ?? 'repo';
+		if ( 'wordpress' === $mode || ! $this->s['media'] ) {
+			$this->s['report']['media'] = 'wordpress' === $mode ? count( $this->s['media'] ) : 0;
+			if ( 'wordpress' === $mode && $this->s['media'] ) {
+				$this->say( 'Media stays on WordPress: ' . count( $this->s['media'] ) . ' files are linked from ' . WPTA_Media::wordpress_base() . '.' );
+			}
+			$this->s['phase'] = 'ai_layout';
+			return;
+		}
+		if ( 'lfs' === $mode && 0 === $this->s['cursor'] ) {
+			$this->write( '.gitattributes', WPTA_Media::LFS_ATTRIBUTES );
+		}
+		$max    = WPTA_Media::max_bytes( $mode );
+		$cdn    = 'cdn' === $mode ? WPTA_Storage::config() : null;
+		$sent   = $cdn ? (array) get_option( 'wpta_cdn_files', array() ) : array();
+		$target = $cdn ? WPTA_Storage::target( $cdn ) : '';
+		$until  = microtime( true ) + 20;
+		$batch  = array_slice( $this->s['media'], $this->s['cursor'], self::MEDIA_BATCH );
+		$done   = 0;
+		foreach ( $batch as $rel ) {
+			// Checked before each file, so a failed upload that waited for its timeout ends the step too.
+			if ( $done > 0 && microtime( true ) > $until ) {
+				break;
+			}
+			++$done;
+			$src = WPTA_Exporter::media_file( $rel );
+			if ( '' === $src ) {
+				$this->s['report']['media_failed'][] = $rel . ' — missing';
+			} elseif ( filesize( $src ) > $max ) {
+				$this->s['report']['media_failed'][] = $rel . ' — larger than ' . size_format( $max ) . ', linked from WordPress';
+				$this->s['fixups'][]                  = $rel;
+			} elseif ( $cdn ) {
+				$sha = WPTA_GitHub::blob_sha_file( $src );
+				if ( ( $sent[ $target ][ $rel ] ?? '' ) !== $sha ) {
+					$ok = WPTA_Storage::put( $cdn, ltrim( $rel, '/' ), $src );
+					if ( is_wp_error( $ok ) ) {
+						$this->s['report']['media_failed'][] = $rel . ' — upload failed (' . $ok->get_error_message() . '), linked from WordPress';
+						$this->s['fixups'][]                  = $rel;
+						continue;
+					}
+					$sent[ $target ][ $rel ] = $sha;
+				}
+				++$this->s['report']['media'];
+			} else {
+				$dest = $this->site_dir() . '/public' . $rel;
+				wp_mkdir_p( dirname( $dest ) );
+				if ( ! copy( $src, $dest ) ) {
+					$this->s['report']['media_failed'][] = $rel . ' — copy failed';
+					continue;
+				}
+				if ( 'lfs' === $mode ) {
+					// The repo gets a small pointer file; the bytes go to GitHub's LFS storage on upload.
+					$oid = (string) hash_file( 'sha256', $dest );
+					$this->s['lfs'][ 'public' . $rel ]   = array( 'oid' => $oid, 'size' => (int) filesize( $dest ) );
+					$this->s['files'][ 'public' . $rel ] = WPTA_GitHub::blob_sha( WPTA_Media::lfs_pointer( $oid, (int) filesize( $dest ) ) );
+				} else {
+					$this->s['files'][ 'public' . $rel ] = WPTA_GitHub::blob_sha_file( $dest );
+				}
+				++$this->s['report']['media'];
+			}
+		}
+		if ( $cdn ) {
+			update_option( 'wpta_cdn_files', $sent, false );
+		}
+		$this->s['cursor'] += $done;
+		$this->say( sprintf( '%s media %d / %d.', $cdn ? 'Uploaded' : 'Copied', $this->s['cursor'], count( $this->s['media'] ) ) );
 		if ( $this->s['cursor'] >= count( $this->s['media'] ) ) {
+			$this->relink_failed_media( $mode );
 			$this->s['cursor'] = 0;
 			$this->s['phase']  = 'ai_layout';
+		}
+	}
+
+	/** Point links to media that wasn't copied or uploaded at the file on WordPress, so the page still shows it. */
+	private function relink_failed_media( string $mode ): void {
+		$wp   = WPTA_Media::wordpress_base();
+		$rel  = WPTA_Media::rel_base();
+		$base = WPTA_Media::base( $mode );
+		foreach ( array_unique( $this->s['fixups'] ) as $m ) {
+			$from = ( '' === $base ? '' : $base ) . ( '' === $base ? $m : substr( $m, strlen( $rel ) ) );
+			$to   = $wp . substr( $m, strlen( $rel ) );
+			foreach ( array_unique( $this->s['media_in'][ $m ] ?? array() ) as $path ) {
+				$file = $this->site_dir() . '/' . $path;
+				if ( is_readable( $file ) ) {
+					$this->write( $path, WPTA_Media::relink( (string) file_get_contents( $file ), $from, $to ) );
+				}
+			}
+		}
+		if ( $this->s['fixups'] ) {
+			$this->say( count( array_unique( $this->s['fixups'] ) ) . ' media file(s) stay on WordPress; see CONVERSION_REPORT.md.' );
 		}
 	}
 
@@ -511,7 +742,7 @@ class WPTA_Job {
 				foreach ( $this->s['flagged'] as $f ) {
 					$cached = WPTA_AI::cached_cleanup( (string) file_get_contents( $this->site_dir() . '/' . $f['path'] ) );
 					if ( $cached ) {
-						file_put_contents( $this->site_dir() . '/' . $f['path'], $cached );
+						$this->write( $f['path'], $cached );
 						$this->s['report']['cleaned'][] = $f['path'];
 					} else {
 						$this->s['report']['unconverted'][] = $f;
@@ -533,7 +764,7 @@ class WPTA_Job {
 			$this->s['report']['unconverted'][]    = $f;
 			$this->say( 'Cleanup failed for "' . $f['title'] . '": ' . $out->get_error_message() );
 		} else {
-			file_put_contents( $file, $out['doc'] );
+			$this->write( $f['path'], $out['doc'] );
 			$this->s['report']['cleaned'][] = $f['path'];
 			$this->say( ( $out['cached'] ? 'Reused earlier cleanup for "' : 'Cleaned shortcodes in "' ) . $f['title'] . '".' );
 		}
@@ -549,21 +780,29 @@ class WPTA_Job {
 			$this->say( 'Added the agent kit (AGENTS.md, CLAUDE.md, Claude Code skills).' );
 		}
 
+		// Files written or copied by this run already have their blob ids; only list the folder and hash the rest
+		// (theme assets), so this step stays short on sites with a lot of media.
 		$files = array();
 		$it    = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $this->site_dir(), FilesystemIterator::SKIP_DOTS ) );
 		foreach ( $it as $file ) {
 			if ( $file->isFile() ) {
 				$rel           = ltrim( str_replace( '\\', '/', substr( $file->getPathname(), strlen( $this->site_dir() ) ) ), '/' );
-				$files[ $rel ] = WPTA_GitHub::blob_sha( (string) file_get_contents( $file->getPathname() ) );
+				$files[ $rel ] = $this->s['files'][ $rel ] ?? WPTA_GitHub::blob_sha_file( $file->getPathname() );
 			}
 		}
-		ksort( $files );
+		ksort( $files, SORT_STRING );
 		$this->s['files'] = $files;
 
+		$this->s['cursor'] = 0;
 		if ( $this->s['opts']['zip'] ) {
-			$this->zip( array_keys( $files ) );
+			$this->s['zipping'] = array_keys( $files );
+			$this->s['phase']   = 'zip';
+			return;
 		}
+		$this->after_package();
+	}
 
+	private function after_package(): void {
 		$this->s['cursor'] = 0;
 		$this->s['phase']  = $this->s['opts']['github'] && WPTA_Settings::github_connected() ? 'github' : 'done';
 		if ( 'done' === $this->s['phase'] ) {
@@ -571,20 +810,41 @@ class WPTA_Job {
 		}
 	}
 
-	private function zip( array $files ): void {
+	/** The zip, a few hundred files or ~20 seconds at a time. ZipArchive appends to the archive between steps. */
+	private function phase_zip(): void {
 		if ( ! class_exists( 'ZipArchive' ) ) {
 			$this->say( 'ZipArchive is not available on this server; skipping the zip.' );
+			$this->after_package();
 			return;
 		}
-		$zip = new ZipArchive();
-		if ( true !== $zip->open( $this->dir() . '/site.zip', ZipArchive::CREATE | ZipArchive::OVERWRITE ) ) {
-			return;
+		$path  = $this->dir() . '/site.zip';
+		$zip   = new ZipArchive();
+		$flags = 0 === $this->s['cursor'] ? ZipArchive::CREATE | ZipArchive::OVERWRITE : ZipArchive::CREATE;
+		if ( true !== $zip->open( $path, $flags ) ) {
+			throw new RuntimeException( 'Could not create the zip.' );
 		}
 		$prefix = $this->s['site']['slug'] . '-astro/';
-		foreach ( $files as $rel ) {
-			$zip->addFile( $this->site_dir() . '/' . $rel, $prefix . $rel );
+		$until  = microtime( true ) + 15;
+		$bytes  = 0;
+		$total  = count( $this->s['zipping'] );
+		while ( $this->s['cursor'] < $total ) {
+			$rel  = $this->s['zipping'][ $this->s['cursor'] ];
+			$file = $this->site_dir() . '/' . $rel;
+			$zip->addFile( $file, $prefix . $rel );
+			if ( preg_match( '/\.(jpe?g|png|gif|webp|avif|mp4|webm|mp3|m4a|zip|gz|woff2?|pdf)$/i', $rel ) ) {
+				$zip->setCompressionName( $prefix . $rel, ZipArchive::CM_STORE ); // Already compressed.
+			}
+			++$this->s['cursor'];
+			$bytes += (int) filesize( $file );
+			if ( $bytes > 150 * MB_IN_BYTES || microtime( true ) > $until ) {
+				break;
+			}
 		}
 		$zip->close();
+		if ( $this->s['cursor'] < $total ) {
+			$this->say( sprintf( 'Zipped %d / %d files.', $this->s['cursor'], $total ) );
+			return;
+		}
 		$this->s['result']['zip'] = add_query_arg(
 			array(
 				'action'   => 'wpta_download',
@@ -593,7 +853,9 @@ class WPTA_Job {
 			),
 			admin_url( 'admin-post.php' )
 		);
-		$this->say( 'Packaged ' . count( $files ) . ' files into a zip.' );
+		$this->say( 'Packaged ' . $total . ' files into a zip.' );
+		$this->s['zipping'] = array();
+		$this->after_package();
 	}
 
 	private function github(): WPTA_GitHub {
@@ -631,7 +893,7 @@ class WPTA_Job {
 		$manifest = WPTA_Sync::manifest( $this->repo_key() );
 		$plan     = WPTA_Sync::plan( $this->s['files'], $remote['files'], $manifest, (array) $this->s['opts']['keep'] );
 
-		$this->s['remote'] = array( 'head' => $remote['head'] );
+		$this->s['remote'] = array( 'head' => $remote['head'], 'tree' => $remote['tree'] ?? null );
 		$this->s['plan']   = $plan;
 		$this->s['result']['repo']    = $this->s['repo']['url'];
 		$this->s['result']['changed'] = count( $plan['changed'] );
@@ -655,8 +917,33 @@ class WPTA_Job {
 	private function phase_github_upload(): void {
 		$todo = array_values( array_diff( $this->s['plan']['upload'], $this->s['uploaded'] ) );
 		$gh   = $this->github();
+
+		// Up to BLOB_BATCH files or ~40 MB per step, so one step never uploads a whole media library.
+		$slice = array();
+		$bytes = 0;
 		foreach ( array_slice( $todo, 0, self::BLOB_BATCH ) as $rel ) {
-			$sha = $gh->blob( $this->s['repo'], (string) file_get_contents( $this->site_dir() . '/' . $rel ) );
+			$size = (int) filesize( $this->site_dir() . '/' . $rel );
+			if ( $slice && $bytes + $size > 40 * MB_IN_BYTES ) {
+				break;
+			}
+			$slice[] = $rel;
+			$bytes  += $size;
+		}
+		$objects = array();
+		foreach ( $slice as $rel ) {
+			if ( isset( $this->s['lfs'][ $rel ] ) ) {
+				$objects[] = $this->s['lfs'][ $rel ] + array( 'file' => $this->site_dir() . '/' . $rel );
+			}
+		}
+		$stored = $gh->lfs_upload( $this->s['repo'], $objects );
+		if ( is_wp_error( $stored ) ) {
+			throw new RuntimeException( $stored->get_error_message() );
+		}
+		foreach ( $slice as $rel ) {
+			$lfs = $this->s['lfs'][ $rel ] ?? null;
+			$sha = $lfs
+				? $gh->blob( $this->s['repo'], WPTA_Media::lfs_pointer( $lfs['oid'], $lfs['size'] ) )
+				: $gh->blob_file( $this->s['repo'], $this->site_dir() . '/' . $rel );
 			if ( is_wp_error( $sha ) ) {
 				throw new RuntimeException( $rel . ': ' . $sha->get_error_message() );
 			}
@@ -679,7 +966,7 @@ class WPTA_Job {
 			: sprintf( 'Sync from WordPress: %d changed, %d removed', count( $plan['changed'] ), count( $plan['deleted'] ) );
 		$message .= "\n\nSource: " . home_url( '/' ) . "\nTrigger: " . $this->s['trigger'] . "\nGenerated by " . WPTA_Settings::brand()['name'] . ' ' . WPTA_VERSION;
 
-		$commit = $this->github()->commit( $this->s['repo'], $plan['tree'], $message, $this->s['remote']['head'] );
+		$commit = $this->github()->commit( $this->s['repo'], WPTA_Sync::tree_changes( $plan ), $message, $this->s['remote']['head'], $this->s['remote']['tree'] ?? null );
 		if ( is_wp_error( $commit ) ) {
 			throw new RuntimeException( $commit->get_error_message() );
 		}
@@ -701,7 +988,7 @@ class WPTA_Job {
 		if ( $r['types'] ) {
 			$md .= ' (' . implode( ', ', array_map( fn( $t, $n ) => "$n $t", array_keys( $r['types'] ), $r['types'] ) ) . ')';
 		}
-		$md .= "\n- Media files copied: " . $r['media'] . "\n";
+		$md .= "\n- " . WPTA_Media::report_line( $this->s['media_mode'] ?? 'repo', (int) $r['media'] ) . "\n";
 		$md .= '- Redirects kept from WordPress: ' . (int) ( $r['redirects'] ?? 0 ) . "\n";
 		if ( $r['seo'] ) {
 			$md .= '- SEO titles and descriptions from: ' . $r['seo'] . "\n";
@@ -746,7 +1033,7 @@ class WPTA_Job {
 			}
 		}
 		// The latest layout is what background syncs use, so it stays however old it is.
-		foreach ( (array) glob( self::cache_dir() . '/*' ) as $file ) {
+		foreach ( array_merge( (array) glob( self::cache_dir() . '/*' ), (array) glob( self::cache_dir() . '/entries/*' ) ) as $file ) {
 			if ( is_file( $file ) && 'layout-latest.astro' !== basename( $file ) && filemtime( $file ) < time() - self::CACHE_TTL ) {
 				unlink( $file );
 			}

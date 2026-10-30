@@ -1,4 +1,5 @@
-# Lint every PHP file and run the unit tests on the oldest and newest supported PHP versions and those between.
+# Lint every PHP file and run the unit tests on every supported PHP version, build a generated Astro site from a
+# fixture with every URL case, and convert a real WordPress site against the mocks in dev/.
 name: Tests
 
 on:
@@ -32,3 +33,51 @@ jobs:
         run: php tests/run.php
       - name: Release zip builds
         run: bin/build-zip.sh
+
+  astro:
+    name: Astro build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Generate the fixture site
+        run: php dev/fixture.php "$RUNNER_TEMP/fixture"
+      - name: Build it with Astro
+        working-directory: ${{ runner.temp }}/fixture
+        run: npm install --no-audit --no-fund && npm run build
+      - name: Check every URL in dist/ and npm start
+        run: node dev/check-dist.mjs "$RUNNER_TEMP/fixture"
+
+  wordpress:
+    name: WordPress conversion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: sqlite3, pdo_sqlite, gd, zip
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install Playwright for the visual check
+        run: npm install --no-save --no-audit --no-fund playwright@1 && npx playwright install --with-deps chromium
+      - name: Convert the test site, sync, LFS, storage, build
+        run: dev/ci-wordpress.sh
+      - name: Upload the screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compare
+          path: dev-out/compare
+          if-no-files-found: ignore

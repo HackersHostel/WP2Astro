@@ -144,8 +144,8 @@ analytics or telemetry, and keys and tokens are encrypted at rest. See
 
 ## Not converted
 
-Comments, forms, WooCommerce and other features that need a server; sidebar widgets; custom fields (such as ACF)
-beyond the rendered content.
+Comments, forms, WooCommerce and other features that need a server; sidebar widgets. Custom fields (post meta and
+ACF) are exported to frontmatter only when you turn on **Custom fields**.
 
 ## WP2Astro vs. WP Astro MCP
 

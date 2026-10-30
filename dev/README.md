@@ -18,9 +18,22 @@ From the plugin root (`mkdir dev-out` first):
 - `python3 dev/llm.py` — mock on :11434 speaking `/chat/completions` and ChatGPT `/responses` (SSE). Model
   `badmodel` returns an invalid layout. Copy `dev/test-llm.php` into the test site's `mu-plugins/`: it points every
   provider at the mock through the `wpta_provider` filter.
-- `python3 dev/gh.py` — mock GitHub on :9999 (token `ghp_test`): git-compatible blob ids, trees, commits, non-forced
-  refs; writes the branch head to `dev-out/ghrepo/` and a log to `dev-out/ghrepo.json`. `POST /__edit
-  {"path","content"}` simulates someone pushing an edit.
+- `python3 dev/gh.py` — mock GitHub on :9999 (token `ghp_test`): git-compatible blob ids, trees (with `base_tree`),
+  commits, non-forced refs, and Git LFS under `/__lfs`; writes the branch head to `dev-out/ghrepo/` and a log to
+  `dev-out/ghrepo.json`. `POST /__edit {"path","content"}` simulates someone pushing an edit. Copy `dev/test-gh.php`
+  into the test site's `mu-plugins/` to point WP2Astro at it.
+- `python3 dev/storage.py` — mock object storage on :9998: S3 PUTs checked with its own Signature V4 implementation
+  (key `test-key`, secret `test-secret`) and Bunny PUTs (`AccessKey: test-secret`); public URL
+  `http://127.0.0.1:9998/{bucket}`.
+- `dev/ci-wordpress.sh` — the CI job: builds this whole test site from wordpress.org downloads in `dev-out/ci/`
+  (with `dev/test-cpt.php`), runs the mocks and `drive.py`, a cached sync, Git LFS and storage runs, an Astro build and
+  `compare.mjs`. Stop the local site and mocks first; it uses the same ports.
+- `php dev/fixture.php <dir>` and `node dev/check-dist.mjs <dir>` — the CI Astro build: a project from the scaffold
+  with every URL case (non-ASCII, `.html`, nested pages, CPTs, pagination, date and author archives), checked in
+  `dist/` and through `npm start`.
+- `node dev/compare.mjs` — screenshots WordPress (:8899) and the Astro build (:4567) and prints how many pixels differ
+  per page; images in `dev-out/compare/`. Needs `npm install --no-save playwright` and `npx playwright install
+  chromium`.
 - `python3 dev/drive.py [openrouter|chatgpt|none] [model] [--noai] [--nogh] [--norun]` — saves settings through the
   real form, calls Load models + Test, runs all AJAX steps (unless `--norun`), downloads the zip to `dev-out/out.zip`.
   With a real GitHub connection, use `--nogh` and `wp wp2astro convert --no-github` to avoid pushing. For `chatgpt`, seed

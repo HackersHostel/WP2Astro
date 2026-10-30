@@ -185,6 +185,22 @@ Used when you connect GitHub, to create your repository and push the generated s
 * What is sent: device-flow codes to `github.com`; your token and every file of the generated site (published posts and pages as Markdown, the media they use and your theme's assets) to `api.github.com`.
 * [Terms of service](https://docs.github.com/site-policy/github-terms/github-terms-of-service), [Privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)
 
+= GitHub Git LFS =
+
+Used when you choose **Copy into the repo with Git LFS** under **Settings → Media**, to store media in your repository's Git LFS storage.
+
+* When: during conversions and syncs.
+* What is sent: your token and the media files your posts use, to `github.com` and the storage address GitHub returns for each file.
+* [Terms of service](https://docs.github.com/site-policy/github-terms/github-terms-of-service), [Privacy statement](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement)
+
+= Object storage (Amazon S3, S3-compatible services, Cloudflare R2, Bunny Storage) =
+
+Used when you choose **Upload to storage** under **Settings → Media**, to upload media to the bucket or storage zone you set up.
+
+* When: when you click **Test storage**, and during conversions and syncs.
+* What is sent: your access key with a request signature (S3, R2) or your storage password (Bunny), and the media files your posts use, only to the **Endpoint** you entered. **Test storage** also reads one small test file back from your **Public URL**.
+* Terms: [AWS service terms](https://aws.amazon.com/service-terms/), [Cloudflare terms](https://www.cloudflare.com/website-terms/), [Bunny terms](https://bunny.net/tos/), or those of the S3-compatible provider you use.
+
 = GitHub releases (only in the build downloaded from GitHub) =
 
 The version downloaded from GitHub checks the `HackersHostel/wp2astro` releases on `api.github.com` for plugin updates when WordPress checks for updates. No site data is sent. The version from WordPress.org doesn't make this request; it updates from WordPress.org.

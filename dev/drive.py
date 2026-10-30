@@ -18,7 +18,7 @@ def req(path, data=None):
 op.open(B + '/wp-login.php').read()
 req('/wp-login.php', {'log': 'admin', 'pwd': 'admin', 'wp-submit': 'Log In', 'testcookie': '1'})
 page = req('/wp-admin/admin.php?page=wp2astro')
-assert 'Convert to Astro' in page or 'Sync now' in page, page[:500]
+assert 'id="wpta-settings"' in page, page[:500]  # The setup or the dashboard, both with the settings form.
 
 form_nonce = re.search(r'name="_wpnonce" value="([^"]+)"', page).group(1)
 s = {'action': 'wpta_save', '_wpnonce': form_nonce, '_wp_http_referer': '/wp-admin/admin.php?page=wp2astro',
@@ -48,6 +48,7 @@ while True:
     d = r['data']; print(f"[{d['phase']} {d['progress']}%]", '\n'.join(d['log']))
     if d['done']: break
 print(json.dumps(d['result']))
+if d.get('error'): sys.exit(1)
 if d['result'].get('zip'):
     z = op.open(d['result']['zip']).read(); open('./dev-out/out.zip', 'wb').write(z); print('zip bytes', len(z))
 print('runs:', len(ajax('wpta_runs')['data']['runs']))

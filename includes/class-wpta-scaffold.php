@@ -25,7 +25,7 @@ class WPTA_Scaffold {
 			'private' => true,
 			'scripts' => array(
 				'dev'     => 'astro dev',
-				'build'   => 'astro build' . ( $f['search'] ? ' && pagefind --site dist' : '' ),
+				'build'   => 'astro build && node scripts/html-files.mjs' . ( $f['search'] ? ' && pagefind --site dist' : '' ),
 				'preview' => 'astro preview',
 				'start'   => 'node server.mjs',
 			),
@@ -38,6 +38,7 @@ class WPTA_Scaffold {
 			'.gitignore'                      => "node_modules/\ndist/\n.astro/\n.env\n",
 			'astro.config.mjs'                => self::astro_config(),
 			'server.mjs'                      => self::server(),
+			'scripts/html-files.mjs'          => self::html_files(),
 			'src/content.config.ts'           => self::content_config(),
 			'src/lib/content.ts'              => self::lib(),
 			'src/layouts/BaseLayout.astro'    => self::default_layout(),
@@ -80,6 +81,39 @@ export default defineConfig({
   build: { format: 'directory' },
   redirects,
 });
+
+JS;
+	}
+
+	/**
+	 * WordPress permalinks that end in .html (/2024/01/legacy.html) must stay files. Astro's directory build writes
+	 * them as dist/2024/01/legacy.html/index.html; this moves each one to dist/2024/01/legacy.html.
+	 */
+	private static function html_files(): string {
+		return <<<'JS'
+// Runs after `astro build`: keeps WordPress permalinks that end in .html (/2024/01/legacy.html) at the same URL.
+// Astro writes them as dist/2024/01/legacy.html/index.html; this moves each one to dist/2024/01/legacy.html.
+import { existsSync, readdirSync, renameSync, rmdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+
+let moved = 0;
+function walk(dir) {
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (!statSync(path).isDirectory()) continue;
+    if (/\.html?$/i.test(name) && existsSync(join(path, 'index.html')) && readdirSync(path).length === 1) {
+      const tmp = `${path}.wp2astro-tmp`;
+      renameSync(join(path, 'index.html'), tmp);
+      rmdirSync(path);
+      renameSync(tmp, path);
+      moved++;
+    } else {
+      walk(path);
+    }
+  }
+}
+if (existsSync('dist')) walk('dist');
+if (moved) console.log(`Kept ${moved} .html permalink(s) as files.`);
 
 JS;
 	}
@@ -135,6 +169,8 @@ createServer((req, res) => {
   const alt = path.endsWith('/') ? path.slice(0, -1) : path + '/';
   const to = redirects.paths?.[path] ?? redirects.paths?.[alt];
   if (to && to !== path) return moved(res, to);
+  // "/x.html/" → "/x.html": .html permalinks are files, not folders.
+  if (/\.html?\/$/i.test(path) && existsSync(normalize(join(root, alt)))) return moved(res, alt);
 
   const file = normalize(join(root, path));
   if (!file.startsWith(root)) { res.writeHead(403).end(); return; }
@@ -165,6 +201,7 @@ const entry = z.object({
   permalink: z.string(),
   excerpt: z.string().default(''),
   author: z.string().default(''),
+  authorSlug: z.string().optional(),
   categories: z.array(z.string()).default([]),
   tags: z.array(z.string()).default([]),
   featuredImage: z.string().optional(),
@@ -173,6 +210,8 @@ const entry = z.object({
   seoDescription: z.string().optional(),
   noindex: z.boolean().default(false),
   canonical: z.string().optional(),
+  // Custom fields (post meta, ACF) when "Custom fields" is on in WP2Astro.
+  fields: z.record(z.string(), z.any()).optional(),
 });
 
 export const collections = {
@@ -227,6 +266,76 @@ export function termPath(kind: 'categories' | 'tags', slug: string) {
   return site[kind].find((t) => t.slug === slug)?.path ?? '/';
 }
 
+/** Year and month ("2024", "01") of a date in the site's time zone, the way WordPress groups date archives. */
+export function yearMonth(d: Date): [string, string] {
+  const utc = (x: Date): [string, string] => [String(x.getUTCFullYear()), String(x.getUTCMonth() + 1).padStart(2, '0')];
+  const tz = site.timezone || 'UTC';
+  const offset = /^([+-])(\d{2}):(\d{2})$/.exec(tz);
+  if (offset) {
+    const minutes = (offset[1] === '-' ? -1 : 1) * (Number(offset[2]) * 60 + Number(offset[3]));
+    return utc(new Date(d.getTime() + minutes * 60000));
+  }
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit' }).formatToParts(d);
+    return [parts.find((p) => p.type === 'year')!.value, parts.find((p) => p.type === 'month')!.value];
+  } catch {
+    return utc(d);
+  }
+}
+
+function monthName(year: string, month: string) {
+  const d = new Date(Date.UTC(Number(year), Number(month) - 1, 15));
+  try {
+    return d.toLocaleDateString(site.language || 'en', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  } catch {
+    return `${year}-${month}`;
+  }
+}
+
+/**
+ * Every archive WordPress had besides the blog listing: categories, tags, authors, years and months, custom post
+ * types. First pages only; [...slug].astro adds /page/2/ and on.
+ */
+export async function getArchives() {
+  const posts = await getPosts();
+  const items = await getItems();
+  const out: { path: string; heading: string; posts: any[] }[] = [];
+  for (const kind of ['categories', 'tags'] as const) {
+    for (const term of site[kind]) {
+      const list = posts.filter((p) => p.data[kind].includes(term.slug));
+      if (list.length) out.push({ path: term.path, heading: term.name, posts: list });
+    }
+  }
+  for (const author of site.authors || []) {
+    const list = posts.filter((p) => p.data.authorSlug === author.slug);
+    if (list.length && author.path) out.push({ path: author.path, heading: author.name, posts: list });
+  }
+  const dates = site.dateArchives as { year?: string; month?: string } | undefined;
+  if (dates?.year && dates?.month) {
+    const years = new Map<string, any[]>();
+    const months = new Map<string, any[]>();
+    for (const p of posts) {
+      const [y, m] = yearMonth(p.data.date);
+      years.set(y, [...(years.get(y) || []), p]);
+      months.set(`${y}-${m}`, [...(months.get(`${y}-${m}`) || []), p]);
+    }
+    for (const [y, list] of years) out.push({ path: dates.year.replace('{y}', y), heading: y, posts: list });
+    for (const [ym, list] of months) {
+      const [y, m] = ym.split('-');
+      out.push({ path: dates.month.replace('{y}', y).replace('{m}', m), heading: monthName(y, m), posts: list });
+    }
+  }
+  for (const archive of site.archives || []) {
+    const list = items.filter((i) => i.data.type === archive.type);
+    if (archive.path && list.length) out.push({ path: archive.path, heading: archive.label, posts: list });
+  }
+  return out;
+}
+
+export function authorPath(slug?: string) {
+  return (site.authors || []).find((a) => a.slug === slug)?.path;
+}
+
 export function formatDate(d: Date) {
   const opts: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
   try {
@@ -269,6 +378,13 @@ interface Props {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <SeoHead {...Astro.props} />
     {site.stylesheets.map((href) => <link rel="stylesheet" href={href} />)}
+    <style is:global>
+      .wp2astro-menu-toggle { display: none; }
+      @media (max-width: 600px) {
+        .wp2astro-menu-toggle { display: block; }
+        .main-navigation:not(.toggled) > .menu { display: none; }
+      }
+    </style>
   </head>
   <body class="wp2astro">
     <div id="page" class="site">
@@ -279,7 +395,8 @@ interface Props {
         </div>
         {site.menu.length > 0 && (
           <nav id="site-navigation" class="main-navigation" aria-label="Primary">
-            <ul class="menu">
+            <button class="menu-toggle wp2astro-menu-toggle" aria-controls="primary-menu" aria-expanded="false">Menu</button>
+            <ul id="primary-menu" class="menu">
               {site.menu.map((item) => <li class="menu-item"><a href={item.url}>{item.label}</a></li>)}
               {site.features?.search && <li class="menu-item menu-search"><a href="/search/">Search</a></li>}
             </ul>
@@ -293,6 +410,21 @@ interface Props {
         <p>&copy; {new Date().getFullYear()} {site.title}</p>
       </footer>
     </div>
+    <script is:inline>
+      // Opens and closes the menu on small screens, unless the theme's own script already did on this click.
+      let before = null;
+      document.addEventListener('click', (e) => {
+        const nav = e.target.closest('.wp2astro-menu-toggle')?.closest('nav');
+        before = nav ? nav.classList.contains('toggled') : null;
+      }, true);
+      document.querySelectorAll('.wp2astro-menu-toggle').forEach((button) => {
+        const nav = button.closest('nav');
+        button.addEventListener('click', () => setTimeout(() => {
+          if (before === null || nav.classList.contains('toggled') !== before) return;
+          button.setAttribute('aria-expanded', String(nav.classList.toggle('toggled')));
+        }));
+      });
+    </script>
   </body>
 </html>
 
@@ -303,7 +435,7 @@ ASTRO;
 		return <<<'ASTRO'
 ---
 import BaseLayout from './BaseLayout.astro';
-import { formatDate, hasImage, site, termName, termPath } from '../lib/content';
+import { authorPath, formatDate, hasImage, site, termName, termPath } from '../lib/content';
 
 const { entry } = Astro.props;
 const d = entry.data;
@@ -325,7 +457,7 @@ const searchable = site.features?.search && !d.noindex ? '' : undefined;
       {d.type !== 'page' && (
         <div class="entry-meta">
           <time datetime={d.date.toISOString()}>{formatDate(d.date)}</time>
-          {d.author && <span class="byline"> · {d.author}</span>}
+          {d.author && <span class="byline"> · {authorPath(d.authorSlug) ? <a class="url fn n" href={authorPath(d.authorSlug)}>{d.author}</a> : d.author}</span>}
         </div>
       )}
     </header>
@@ -419,7 +551,7 @@ import { render } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PostLayout from '../layouts/PostLayout.astro';
 import PostList from '../components/PostList.astro';
-import { getItems, getPages, getPosts, site, toParam } from '../lib/content';
+import { getArchives, getItems, getPages, getPosts, site, toParam } from '../lib/content';
 
 export async function getStaticPaths() {
   const posts = await getPosts();
@@ -440,34 +572,28 @@ export async function getStaticPaths() {
     add(entry.data.permalink, { kind: 'entry', entry });
   }
 
-  // Blog listing with WordPress-style pagination: /page/2/ or /blog/page/2/.
-  const total = Math.max(1, Math.ceil(posts.length / per));
-  for (let n = 1; n <= total; n++) {
-    if (n === 1 && base === '/') continue; // handled by index.astro
-    const path = n === 1 ? base : `${base}page/${n}/`;
-    if (n === 1) used.delete(base);
-    add(path, {
-      kind: 'list',
-      posts: posts.slice((n - 1) * per, n * per),
-      prev: n > 1 ? (n === 2 ? base : `${base}page/${n - 1}/`) : undefined,
-      next: n < total ? `${base}page/${n + 1}/` : undefined,
-    });
-  }
-
-  // Category and tag archives at their WordPress URLs.
-  for (const kind of ['categories', 'tags'] as const) {
-    for (const term of site[kind]) {
-      const list = posts.filter((p) => p.data[kind].includes(term.slug));
-      if (!list.length) continue;
-      add(term.path, { kind: 'list', posts: list, heading: term.name });
+  // A listing and its /page/2/, /page/3/… like WordPress, postsPerPage entries each.
+  const listing = (path: string, list: any[], heading?: string, skipFirst = false) => {
+    const total = Math.max(1, Math.ceil(list.length / per));
+    const dir = path.endsWith('/') ? path : `${path}/`; // /category/news → /category/news/page/2/
+    for (let n = 1; n <= total; n++) {
+      if (n === 1 && skipFirst) continue;
+      add(n === 1 ? path : `${dir}page/${n}/`, {
+        kind: 'list',
+        posts: list.slice((n - 1) * per, n * per),
+        heading,
+        prev: n > 1 ? (n === 2 ? path : `${dir}page/${n - 1}/`) : undefined,
+        next: n < total ? `${dir}page/${n + 1}/` : undefined,
+      });
     }
-  }
+  };
 
-  // Custom post type archives (/projects/ …).
-  for (const archive of site.archives || []) {
-    const list = items.filter((i) => i.data.type === archive.type);
-    if (archive.path && list.length) add(archive.path, { kind: 'list', posts: list, heading: archive.label });
-  }
+  // The blog: /page/2/ (page 1 is index.astro), or /blog/ and /blog/page/2/ with a static front page.
+  if (base !== '/') used.delete(base);
+  listing(base, posts, undefined, base === '/');
+
+  // Category, tag, author, year and month archives and custom post type archives at their WordPress URLs.
+  for (const archive of await getArchives()) listing(archive.path, archive.posts, archive.heading);
   return paths;
 }
 
@@ -519,7 +645,8 @@ interface Props {
 const { title, description = site.description, seoTitle, image, noindex = false, canonical, type = 'website' } = Astro.props;
 const fullTitle = seoTitle || (title ? `${title} – ${site.title}` : site.title);
 const base = Astro.site ?? new URL(site.url);
-const url = new URL(canonical || Astro.url.pathname, base).href;
+// Pages at .html permalinks are built as folders, then moved to files (scripts/html-files.mjs): no trailing slash.
+const url = new URL(canonical || Astro.url.pathname.replace(/(\.html?)\/$/i, '$1'), base).href;
 const imageUrl = image ? new URL(image, base).href : undefined;
 ---
 <title>{fullTitle}</title>
@@ -535,6 +662,7 @@ const imageUrl = image ? new URL(image, base).href : undefined;
 <meta name="twitter:card" content={imageUrl ? 'summary_large_image' : 'summary'} />
 {site.features?.feeds && <link rel="alternate" type="application/rss+xml" title={site.title} href="/feed.xml" />}
 <meta name="generator" content={site.generator} />
+{(site.scripts || []).map((src) => <script is:inline src={src} defer></script>)}
 
 ASTRO;
 	}
@@ -585,7 +713,8 @@ TS;
 	private static function sitemap(): string {
 		return <<<'TS'
 import type { APIRoute } from 'astro';
-import { getEntries, site } from '../lib/content';
+import { getArchives, getEntries } from '../lib/content';
+import site from '../site.json';
 
 export const GET: APIRoute = async ({ site: astroSite }) => {
   const base = astroSite ?? new URL(site.url);
@@ -593,7 +722,7 @@ export const GET: APIRoute = async ({ site: astroSite }) => {
   for (const e of await getEntries()) {
     if (!e.data.noindex && !e.data.canonical) urls.set(e.data.permalink, e.data.updated ?? e.data.date);
   }
-  for (const a of site.archives || []) if (a.path) urls.set(a.path, undefined);
+  for (const a of await getArchives()) if (!urls.has(a.path)) urls.set(a.path, undefined);
   const body = [...urls]
     .map(([path, mod]) => `  <url><loc>${new URL(path, base).href}</loc>${mod ? `<lastmod>${mod.toISOString()}</lastmod>` : ''}</url>`)
     .join('\n');
@@ -682,7 +811,7 @@ Requires Node.js 22.23.4+ (Astro 7).
 - Site title, menu, categories/tags: `src/site.json`
 - Layout: `src/layouts/BaseLayout.astro`, styles from the old theme in `public/theme/`
 - SEO tags: `src/components/SeoHead.astro` (titles and descriptions come from the WordPress SEO plugin)
-- Redirects: `redirects.json` (used by `npm start`) and `public/_redirects` (Netlify, Cloudflare Pages)
+- Redirects: `redirects.json` (used by `npm start`), `public/_redirects` (Netlify, Cloudflare Pages) and `netlify.toml` (Netlify: also `?p=123` links)
 - Media: `public/wp-content/uploads/` (same paths as on WordPress)
 
 See `CONVERSION_REPORT.md` for anything that needs a manual look.

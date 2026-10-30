@@ -46,7 +46,7 @@
 
   const tabLinks = $$('.wpta-tabs a');
   const tabPanels = $$('.wpta-tabpanel');
-  const sections = ['ai', 'github', 'output', 'sync', 'data'];
+  const sections = ['ai', 'github', 'output', 'media', 'sync', 'data'];
   const subLinks = $$('.wpta-subnav a');
   let section = '';
   const markSub = (id) => {
@@ -175,6 +175,19 @@
       try { say(msg, (await post('wpta_test', panelData(panel))).message, 'ok'); } catch (e) { say(msg, e.message, 'bad'); }
     }));
   });
+
+  /* ---------------------------------------------------------------- Media */
+
+  $$('input[name="wpta[media_mode]"]').forEach((r) => r.addEventListener('change', () => {
+    $$('[data-media-panel]').forEach((p) => { p.hidden = p.dataset.mediaPanel !== r.value; });
+    showPanel($('input[name="wpta[provider]"]:checked') ? $('input[name="wpta[provider]"]:checked').value : '');
+  }));
+  const storageTest = $('.wpta-storage-test');
+  if (storageTest) storageTest.addEventListener('click', () => busy(storageTest, async () => {
+    const msg = $('.wpta-storage-msg');
+    say(msg, 'Uploading a test file…');
+    try { say(msg, (await postForm('wpta_storage_test', form)).message, 'ok'); } catch (e) { say(msg, e.message, 'bad'); }
+  }));
 
   /* ----------------------------------------------------------- OpenRouter */
 
@@ -333,7 +346,7 @@
     const order = steps.map((li) => li.dataset.phase);
     const C = 2 * Math.PI * 64;
     const text = {
-      init: 'Reading the theme and settings', content: 'Converting content to Markdown', media: 'Copying media',
+      init: 'Reading the theme and settings', content: 'Converting content to Markdown', media: 'Copying media', zip: 'Building the zip',
       ai_layout: 'Rebuilding the layout with AI (can take a few minutes on local models)', ai_cleanup: 'Cleaning up dead shortcodes',
       package: 'Packaging the project', github: 'Comparing with GitHub', github_upload: 'Uploading changed files',
       github_commit: 'Committing', done: 'Done', error: 'Stopped',
@@ -434,6 +447,8 @@
             break;
           }
           status = await post('wpta_step', { job: begun.job });
+          // Another request is working on this job (another tab): wait instead of hammering the server.
+          if (status.waiting) await new Promise((r) => setTimeout(r, 1000));
           write(status.log);
           ring(status.progress);
           ringLabel.textContent = 'done so far';

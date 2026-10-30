@@ -22,6 +22,10 @@ something was pushed, the commit URL.
 `[--zip=<path>]`
 : Also copy the project zip to this path.
 
+`[--cached]`
+: Reuse the Markdown of posts that haven't changed since the last run, as auto-sync does. Faster on big sites;
+shortcodes that show changing content (latest posts…) keep their old output. Default: off.
+
 `[--force]`
 : Start even if another conversion looks like it is running.
 

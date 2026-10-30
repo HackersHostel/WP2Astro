@@ -71,6 +71,7 @@ class WPTA_Admin {
 		add_action( 'admin_post_wpta_setup', array( __CLASS__, 'setup' ) );
 		add_action( 'wp_ajax_wpta_save', array( __CLASS__, 'ajax_save' ) );
 		add_action( 'wp_ajax_wpta_auto_sync', array( __CLASS__, 'ajax_auto_sync' ) );
+		add_action( 'wp_ajax_wpta_storage_test', array( __CLASS__, 'ajax_storage_test' ) );
 		add_filter( 'admin_body_class', array( __CLASS__, 'body_class' ) );
 		add_filter( 'plugin_action_links_' . plugin_basename( WPTA_FILE ), array( __CLASS__, 'action_links' ) );
 	}
@@ -121,6 +122,11 @@ class WPTA_Admin {
 				'<p>Click <strong>Connect GitHub</strong>, enter the code at github.com/login/device and approve. Or paste a fine-grained personal access token with <strong>Administration</strong> and <strong>Contents</strong> set to read and write.</p>
 				<p>The repository is created on the first run. It is private unless you turn off <strong>Private repository</strong>. Tokens are stored encrypted.</p>',
 				array( 'github' => 'Connect GitHub' ),
+			),
+			'media'           => array(
+				'Media',
+				'<p>Under <strong>Settings → Media</strong>, choose where images and other uploads go: copied into the repo (files over 25 MB stay on WordPress), stored with Git LFS, left on WordPress, or uploaded to Amazon S3, Cloudflare R2 or Bunny Storage. Click <strong>Test storage</strong> before saving storage settings.</p>',
+				array( 'media' => 'Choose where media goes' ),
 			),
 			'sync'            => array(
 				'Sync',
@@ -249,6 +255,43 @@ class WPTA_Admin {
 		}
 		WPTA_Settings::update( array( 'auto_sync' => $on ? 1 : 0 ) );
 		wp_send_json_success( array( 'on' => $on ) );
+	}
+
+	/** Settings → Media → Test storage: upload a small file with the values in the form, then fetch it back. */
+	public static function ajax_storage_test(): void {
+		check_ajax_referer( 'wpta' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( array( 'message' => 'Not allowed.' ), 403 );
+		}
+		$in  = (array) wp_unslash( $_POST['wpta'] ?? array() ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- sanitized below.
+		$s   = WPTA_Settings::get();
+		$try = array( 'cdn_provider' => sanitize_key( $in['cdn_provider'] ?? '' ) );
+		foreach ( array( 'cdn_endpoint', 'cdn_url' ) as $k ) {
+			$try[ $k ] = esc_url_raw( trim( (string) ( $in[ $k ] ?? '' ) ) );
+		}
+		foreach ( array( 'cdn_region', 'cdn_bucket', 'cdn_key_id' ) as $k ) {
+			$try[ $k ] = sanitize_text_field( (string) ( $in[ $k ] ?? '' ) );
+		}
+		$try['cdn_secret'] = sanitize_text_field( (string) ( $in['cdn_secret'] ?? '' ) ) ?: $s['cdn_secret'];
+		$c                 = WPTA_Storage::config( $try );
+		$missing           = WPTA_Storage::missing( $c );
+		if ( $missing ) {
+			wp_send_json_error( array( 'message' => $missing ) );
+		}
+		$body = 'WP2Astro storage check ' . wp_generate_password( 12, false ) . "\n";
+		$ok   = WPTA_Storage::put_bytes( $c, 'wp2astro-check.txt', $body, 'text/plain' );
+		if ( is_wp_error( $ok ) ) {
+			wp_send_json_error( array( 'message' => 'Upload failed: ' . $ok->get_error_message() ) );
+		}
+		$get  = wp_remote_get( $c['url'] . '/wp2astro-check.txt', array( 'timeout' => 15 ) );
+		$seen = ! is_wp_error( $get ) && 200 === (int) wp_remote_retrieve_response_code( $get ) && trim( (string) wp_remote_retrieve_body( $get ) ) === trim( $body );
+		wp_send_json_success(
+			array(
+				'message' => $seen
+					? 'Uploaded a test file and read it back from ' . $c['url'] . '. Save settings to use it.'
+					: 'Uploaded a test file, but ' . $c['url'] . '/wp2astro-check.txt didn’t return it yet. Check the public URL (and that the bucket or zone is public), then try again.',
+			)
+		);
 	}
 
 	/** Skip the setup, or show it again (Settings → Plugin data). */
@@ -851,6 +894,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 			'search'    => array( 'activity', 'Site search', 'Static full-text search with Pagefind; old ?s= links land on it.' ),
 			'cpts'      => array( 'folder', 'Custom post types', 'Public custom post types get their own folders and archives.' ),
 			'agent_kit' => array( 'terminal', 'Agent kit', 'AGENTS.md, CLAUDE.md and Claude Code skills so an AI agent can finish the site.' ),
+			'fields'    => array( 'tag', 'Custom fields', 'Public post meta and ACF fields in each entry’s frontmatter. Off by default: fields can hold private data.' ),
 		);
 		foreach ( $checks as $k => $c ) {
 			self::toggle( $k, (bool) $s[ $k ], $c[0], $c[1], $c[2] );
@@ -872,6 +916,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 			'ai_layout'     => array( 'sparkle', 'Rebuild the layout with AI' ),
 			'ai_cleanup'    => array( 'wand', 'Clean up dead shortcodes' ),
 			'package'       => array( 'package', 'Package the project' ),
+			'zip'           => array( 'download', 'Build the zip' ),
 			'github'        => array( 'github', 'Compare with GitHub' ),
 			'github_upload' => array( 'upload', 'Upload changed files' ),
 			'github_commit' => array( 'commit', 'Commit' ),
@@ -1206,6 +1251,82 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 		}
 	}
 
+	/* ---------------------------------------------------------------- Media */
+
+	private static function media_section( array $s ): void {
+		$mode  = WPTA_Media::mode( $s );
+		$c     = WPTA_Storage::config( $s );
+		$modes = array(
+			'repo'      => array( 'folder', 'Files over ' . size_format( WPTA_Media::max_bytes( 'repo' ) ) . ' stay on WordPress. Simple, but every image makes the repo bigger.' ),
+			'lfs'       => array( 'github', 'Keeps the repo small: GitHub stores the files in Git LFS. Your host must fetch LFS files when it builds, and GitHub’s LFS quotas apply.' ),
+			'wordpress' => array( 'globe', 'Nothing is copied: pages link to the files on this WordPress site, so it must stay online.' ),
+			'cdn'       => array( 'upload', 'Upload to Amazon S3, Cloudflare R2 or Bunny Storage and link the files from there.' ),
+		);
+		?>
+		<section class="wpta-card wpta-sec" id="media" aria-labelledby="media-h">
+			<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="media-h">Media</h2><small>Where images and other uploads go. Changing it rebuilds every entry on the next run. <?php echo self::doc_link( 'media', 'Choose where media goes' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small></div></div>
+			<div class="wpta-provs is-compact is-described" role="radiogroup" aria-label="Media storage">
+				<?php foreach ( WPTA_Media::MODES as $id => $label ) : ?>
+					<label class="wpta-prov<?php echo $mode === $id ? ' is-selected' : ''; ?>">
+						<input type="radio" class="wpta-sr" name="wpta[media_mode]" value="<?php echo esc_attr( $id ); ?>" <?php checked( $mode, $id ); ?>>
+						<span class="wpta-prov-tick" aria-hidden="true"><?php echo self::icon( 'check', 12 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
+						<span class="wpta-prov-art"><span class="wpta-tile<?php echo 'lfs' === $id ? ' is-brand' : ''; ?>"><?php echo 'lfs' === $id ? self::logo( 'github' ) : self::icon( $modes[ $id ][0] ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span></span>
+						<span class="wpta-prov-text"><strong><?php echo esc_html( $label ); ?></strong><span><?php echo esc_html( $modes[ $id ][1] ); ?></span></span>
+					</label>
+				<?php endforeach; ?>
+			</div>
+			<div class="wpta-fields wpta-media-cdn" data-media-panel="cdn" <?php echo 'cdn' === $mode ? '' : 'hidden'; ?>>
+				<div class="wpta-field">
+					<label for="wpta-cdn-provider">Storage</label>
+					<select id="wpta-cdn-provider" class="wpta-in" name="wpta[cdn_provider]">
+						<?php foreach ( WPTA_Storage::PROVIDERS as $id => $label ) : ?>
+							<option value="<?php echo esc_attr( $id ); ?>" <?php selected( $c['provider'], $id ); ?>><?php echo esc_html( $label ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+				<div class="wpta-field">
+					<label for="wpta-cdn-endpoint">Endpoint</label>
+					<input id="wpta-cdn-endpoint" class="wpta-in" type="url" name="wpta[cdn_endpoint]" value="<?php echo esc_attr( $s['cdn_endpoint'] ); ?>" placeholder="https://s3.us-east-1.amazonaws.com">
+					<small>S3: leave empty for AWS, or your provider’s S3 endpoint. R2: <code>https://&lt;account id&gt;.r2.cloudflarestorage.com</code>. Bunny: the storage hostname, <code>https://storage.bunnycdn.com</code> by default.</small>
+				</div>
+				<div class="wpta-two">
+					<div class="wpta-field">
+						<label for="wpta-cdn-bucket">Bucket or storage zone</label>
+						<input id="wpta-cdn-bucket" class="wpta-in" type="text" name="wpta[cdn_bucket]" value="<?php echo esc_attr( $s['cdn_bucket'] ); ?>">
+					</div>
+					<div class="wpta-field">
+						<label for="wpta-cdn-region">Region</label>
+						<input id="wpta-cdn-region" class="wpta-in" type="text" name="wpta[cdn_region]" value="<?php echo esc_attr( $s['cdn_region'] ); ?>" placeholder="us-east-1">
+						<small>S3 only. R2 and Bunny ignore it.</small>
+					</div>
+				</div>
+				<div class="wpta-two">
+					<div class="wpta-field">
+						<label for="wpta-cdn-key-id">Access key ID</label>
+						<input id="wpta-cdn-key-id" class="wpta-in" type="text" autocomplete="off" name="wpta[cdn_key_id]" value="<?php echo esc_attr( $s['cdn_key_id'] ); ?>">
+						<small>S3 and R2. Bunny doesn’t use one.</small>
+					</div>
+					<div class="wpta-field">
+						<label for="wpta-cdn-secret">Secret access key or password</label>
+						<input id="wpta-cdn-secret" class="wpta-in" type="password" autocomplete="off" name="wpta[cdn_secret]" value="" placeholder="<?php echo esc_attr( WPTA_Secrets::mask( $s['cdn_secret'] ) ?: 'Stored encrypted' ); ?>">
+						<?php if ( $s['cdn_secret'] ) : ?>
+							<label class="wpta-check"><input type="checkbox" name="wpta[clear_cdn_secret]" value="1"> Remove</label>
+						<?php endif; ?>
+						<small>Bunny: the storage zone’s password (FTP &amp; API access).</small>
+					</div>
+				</div>
+				<div class="wpta-field">
+					<label for="wpta-cdn-url">Public URL</label>
+					<input id="wpta-cdn-url" class="wpta-in" type="url" name="wpta[cdn_url]" value="<?php echo esc_attr( $s['cdn_url'] ); ?>" placeholder="https://media.example.com">
+					<small>Where visitors load the files: your CDN or custom domain, an <code>r2.dev</code> address, or a Bunny pull zone (<code>https://zone.b-cdn.net</code>). Files keep their WordPress path, such as <code>/wp-content/uploads/2024/01/photo.jpg</code>.</small>
+				</div>
+				<p class="wpta-actions"><button type="button" class="wpta-btn wpta-storage-test">Test storage</button></p>
+				<p class="wpta-msg wpta-storage-msg" aria-live="polite"></p>
+			</div>
+		</section>
+		<?php
+	}
+
 	/* ------------------------------------------------------------- Settings */
 
 	private static function settings( array $s, array $cg, bool $gh ): void {
@@ -1213,6 +1334,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 			'ai'     => array( self::icon( 'sparkle', 18 ), 'AI model' ),
 			'github' => array( self::logo( 'github', 18 ), 'GitHub' ),
 			'output' => array( self::icon( 'layout', 18 ), 'What to build' ),
+			'media'  => array( self::icon( 'image', 18 ), 'Media' ),
 			'sync'   => array( self::icon( 'sync', 18 ), 'Keep in sync' ),
 			'data'   => array( self::icon( 'database', 18 ), 'Plugin data' ),
 		);
@@ -1244,6 +1366,8 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 					<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'layout' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="out-h">What to build</h2><small>Everything is on by default.</small></div></div>
 					<div class="wpta-pills"><?php self::build_toggles( $s ); ?></div>
 				</section>
+
+				<?php self::media_section( $s ); ?>
 
 				<section class="wpta-card wpta-sec" id="sync" aria-labelledby="sync-h">
 					<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'sync' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="sync-h">Keep in sync</h2><small><?php echo self::doc_link( 'sync', 'What a sync pushes and keeps' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small></div></div>

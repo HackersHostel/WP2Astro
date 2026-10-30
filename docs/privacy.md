@@ -5,7 +5,8 @@ load a model list or check a balance. There is no analytics and no telemetry. AP
 with a key derived from your site's salts, and each is only sent to the service it belongs to.
 
 Only published, non-password-protected content is exported. Drafts, private posts, comments and user data are never
-read or sent. With **No AI** and no GitHub connection, nothing leaves your server.
+read or sent. With **Custom fields** on, the public post meta and ACF fields of published entries are exported too;
+use the [`wpta_entry_fields`](developers/hooks.md#wpta_entry_fields) filter to leave out anything private. With **No AI** and no GitHub connection, nothing leaves your server.
 
 The same list, in WordPress.org format, is in the **External services** section of `readme.txt`. Keep both in step
 when a request is added or changed.
@@ -17,6 +18,8 @@ when a request is added or changed.
 | OpenAI — Sign in with ChatGPT (`auth.openai.com`, `api.openai.com`) | Sign-in, token refresh, sign-out; AI steps, **Test**, **Load models** | OAuth codes and tokens; the homepage HTML trimmed to header, menu and footer (no scripts or styles) and the menu; the full Markdown of posts that contain dead shortcodes | [Terms](https://openai.com/policies/terms-of-use), [Privacy](https://openai.com/policies/privacy-policy) |
 | OpenRouter (`openrouter.ai`) and the model provider it routes to | **Connect OpenRouter**, balance; AI steps, **Test**, **Load models** | OAuth code exchange; API key; your site's address (as the app referrer); the same prompts | [Terms](https://openrouter.ai/terms), [Privacy](https://openrouter.ai/privacy) |
 | GitHub (`github.com`, `api.github.com`) | **Connect GitHub**, **Check repo**, saving a token, conversions and syncs | Device-flow codes; token; every file of the generated site (posts, pages, media, theme assets) | [Terms](https://docs.github.com/site-policy/github-terms/github-terms-of-service), [Privacy](https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement) |
+| GitHub Git LFS (`github.com` and the storage address GitHub returns) | Conversions and syncs, with **Copy into the repo with Git LFS** | Your token and the media files your posts use | as above |
+| Object storage you set up: Amazon S3 or an S3-compatible service, Cloudflare R2, or Bunny Storage | **Test storage**; conversions and syncs, with **Upload to storage** | Your access key and a signature (S3, R2) or storage password (Bunny), and the media files your posts use, only to the **Endpoint** you entered; **Test storage** also reads one small test file back from your **Public URL** | Your provider's terms: [AWS](https://aws.amazon.com/service-terms/), [Cloudflare](https://www.cloudflare.com/website-terms/), [Bunny](https://bunny.net/tos/) |
 | GitHub releases (`api.github.com`), Hackers Hostel build only | When WordPress checks for plugin updates (the answer is cached for 12 hours) | A request for the latest release of `HackersHostel/wp2astro`; no site data | as above |
 
 The WordPress.org build of WP2Astro doesn't contain the GitHub release updater, so it never makes the last request, and

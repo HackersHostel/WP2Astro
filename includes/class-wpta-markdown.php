@@ -75,8 +75,8 @@ class WPTA_Markdown {
 				if ( '' === $inner ) {
 					return '';
 				}
-				// Don't let paragraph text turn into a heading/list/quote by accident.
-				$inner = preg_replace( '/^(#{1,6}\s|>|[-+*]\s|\d+[.)]\s)/', '\\\\$1', $inner );
+				// Don't let paragraph text, or a line after a <br>, turn into a heading, list, quote or rule by accident.
+				$inner = implode( "\x01", array_map( array( __CLASS__, 'escape_line_start' ), explode( "\x01", $inner ) ) );
 				return "\n\n" . $inner . "\n\n";
 
 			case 'h1':
@@ -198,10 +198,22 @@ class WPTA_Markdown {
 		return "\n\n<div class=\"wp-raw\">\n" . trim( $html ) . "\n</div>\n\n";
 	}
 
+	/** Plain text that must stay plain: escape what Markdown would read as links, emphasis, code, HTML or entities. */
 	private static function text( string $t ): string {
 		$t = preg_replace( '/\s+/u', ' ', $t );
-		$t = str_replace( array( '\\', '*', '`', '<' ), array( '\\\\', '\\*', '\\`', '&lt;' ), $t );
+		$t = preg_replace( '/&(?=#?[a-z0-9]+;)/i', '&amp;', $t ); // "&copy;" typed as text, not ©.
+		$t = str_replace( array( '\\', '*', '_', '`', '[', ']', '<' ), array( '\\\\', '\\*', '\\_', '\\`', '\\[', '\\]', '&lt;' ), $t );
 		return $t;
+	}
+
+	/**
+	 * Escape a line start that CommonMark would read as a block: heading, quote, list item, thematic break (---) or
+	 * setext underline (=== or --- under a line).
+	 */
+	private static function escape_line_start( string $line ): string {
+		// "1. " is a list item: escape the dot ("1\. "); a backslash before a digit would show up as text.
+		$line = (string) preg_replace( '/^(\s*\d+)([.)])(?=\s|$)/', '$1\\\\$2', $line );
+		return (string) preg_replace( '/^(\s*)(#{1,6}(?:\s|$)|>|[-+*](?:\s|$)|=+\s*$|-+\s*$|-(?:\s*-){2,}\s*$)/', '$1\\\\$2', $line );
 	}
 
 	private static function wrap( string $inner, string $mark ): string {

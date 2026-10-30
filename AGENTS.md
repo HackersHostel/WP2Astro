@@ -28,7 +28,9 @@ GitHub and keeps it in sync. `README.md`, `readme.txt` (WordPress.org format) an
 - `includes/class-wpta-chatgpt.php` — Sign in with ChatGPT (paste-back loopback flow, refresh, revoke)
 - `includes/class-wpta-connect.php` — AJAX: models, test, OpenRouter OAuth + balance, ChatGPT, GitHub device flow
 - `includes/class-wpta-admin.php` — dashboard page, Help tabs; `assets/admin.js`, `assets/admin.css`
-- `includes/class-wpta-exporter.php` — entries (incl. CPTs), SEO meta, redirects, media, theme assets
+- `includes/class-wpta-exporter.php` — entries (incl. CPTs), SEO meta, custom fields, redirects, media, theme assets
+- `includes/class-wpta-media.php` — media modes (repo, Git LFS, WordPress, storage), size caps, link rewriting
+- `includes/class-wpta-storage.php` — S3 / R2 (Signature V4) and Bunny Storage uploads
 - `includes/class-wpta-markdown.php` — HTML → Markdown
 - `includes/class-wpta-scaffold.php` — Astro project templates (SEO head, feed, sitemap, search, server)
 - `includes/class-wpta-agent-kit.php` — AGENTS.md / CLAUDE.md / skills for the generated repo
@@ -41,11 +43,14 @@ GitHub and keeps it in sync. `README.md`, `readme.txt` (WordPress.org format) an
   WordPress.org build)
 - `readme.txt` — WordPress.org readme; `.wordpress-org/` — plugin directory icons, banners, screenshots (not shipped)
 - `docs/` — task-based user guides; `docs/developers/` — hooks, WP-CLI, white-label, OAuth app, releasing
-- `tests/run.php` — unit tests for the pure parts and readme checks; `dev/` — mocks + driver, `dev/wporg/` asset and
+- `tests/run.php` — unit tests for the pure parts and readme checks; `dev/` — mocks + driver, the CI fixture
+  (`fixture.php`, `check-dist.mjs`), the WordPress CI job (`ci-wordpress.sh`), `compare.mjs`, `dev/wporg/` asset and
   screenshot scripts (not shipped)
 
 ## Checks before calling something done
 
 - `php tests/run.php` and `find . -name '*.php' -not -path './dev/*' -exec php -l {} \;`
-- A conversion on the local WP with `python3 dev/drive.py`, then `npm install && npm run build` on the output
+- A conversion on the local WP with `python3 dev/drive.py`, then `npm install && npm run build` on the output, or
+  `dev/ci-wordpress.sh`, which does all of it on a fresh site
+- `php dev/fixture.php <dir>`, `npm install && npm run build` there, then `node dev/check-dist.mjs <dir>`
 - `bin/build-zip.sh` and `bin/build-zip.sh --wporg` build

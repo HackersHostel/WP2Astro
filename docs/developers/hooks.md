@@ -1,6 +1,6 @@
 # Hooks
 
-WP2Astro has seven filters. Each is documented in the code with a docblock that follows the
+WP2Astro has ten filters. Each is documented in the code with a docblock that follows the
 [WordPress PHP documentation standards](https://developer.wordpress.org/coding-standards/inline-documentation-standards/php/);
 this page matches those docblocks and adds an example for each.
 
@@ -13,7 +13,10 @@ Put the examples in a small must-use plugin (`wp-content/mu-plugins/wp2astro-twe
 | [`wpta_provider`](#wpta_provider) | 0.2.0 | An AI provider's endpoint, model or key |
 | [`wpta_post_types`](#wpta_post_types) | 0.2.0 | Which post types are exported and watched by auto-sync |
 | [`wpta_llm_timeout`](#wpta_llm_timeout) | 0.2.0 | Seconds one AI request may take |
+| [`wpta_entry_fields`](#wpta_entry_fields) | 0.3.0 | Custom fields written to an entry's frontmatter |
+| [`wpta_max_media_bytes`](#wpta_max_media_bytes) | 0.3.0 | The largest media file copied or uploaded |
 | [`wpta_github_api`](#wpta_github_api) | 0.2.0 | The GitHub REST API base URL |
+| [`wpta_github_lfs`](#wpta_github_lfs) | 0.3.0 | The Git LFS endpoint media is stored with |
 | [`wpta_github_client_id`](#wpta_github_client_id) | 0.2.0 | The OAuth app behind **Connect GitHub** |
 | [`wpta_update_repo`](#wpta_update_repo) | 0.2.0 | The GitHub repository plugin updates come from |
 
@@ -122,6 +125,53 @@ Defined in `includes/class-wpta-llm.php`, `WPTA_LLM::timeout()`.
 add_filter( 'wpta_llm_timeout', fn() => 120 );
 ```
 
+## wpta_entry_fields
+
+Filters the custom fields written to an entry's frontmatter under `fields:`. Runs only when **Custom fields** is on in
+**Settings → What to build**. Everything returned ends up in the generated repository, so remove private values
+here. Posts, terms and users are written as small objects, and strings that link to this site become root-relative.
+
+Defined in `includes/class-wpta-exporter.php`, `WPTA_Exporter::fields()`.
+
+**Parameters**
+
+- `$fields` *(array)* Field name => value: public post meta (keys without a leading underscore), then ACF fields
+  (formatted) when ACF is active.
+- `$post` *(WP_Post)* The entry.
+
+**Example**
+
+```php
+// Only export two ACF fields, renamed.
+add_filter( 'wpta_entry_fields', function ( $fields, $post ) {
+	return array(
+		'price' => $fields['ticket_price'] ?? null,
+		'venue' => $fields['venue_name'] ?? null,
+	);
+}, 10, 2 );
+```
+
+In the Astro project, read them as `entry.data.fields.price`.
+
+## wpta_max_media_bytes
+
+Filters the largest media file WP2Astro copies into the repo, stores with Git LFS or uploads to object storage.
+Uploading a file takes a few times its size in PHP memory; raise the limit only with a high `memory_limit`. Larger
+files keep their WordPress address and are listed in `CONVERSION_REPORT.md`. See [Choose where media goes](../media.md).
+
+Defined in `includes/class-wpta-media.php`, `WPTA_Media::max_bytes()`.
+
+**Parameters**
+
+- `$bytes` *(int)* Limit in bytes. Default 25 MB for `'repo'`, 50 MB for `'lfs'` and `'cdn'`.
+- `$mode` *(string)* `'repo'`, `'lfs'` or `'cdn'`.
+
+**Example**
+
+```php
+add_filter( 'wpta_max_media_bytes', fn( $bytes, $mode ) => 'cdn' === $mode ? 200 * MB_IN_BYTES : $bytes, 10, 2 );
+```
+
 ## wpta_github_api
 
 Filters the base URL of the GitHub REST API: point it at GitHub Enterprise Server or a test server.
@@ -139,6 +189,24 @@ add_filter( 'wpta_github_api', fn() => 'https://github.example.com/api/v3' );
 ```
 
 **Connect GitHub** always talks to `github.com`. With GitHub Enterprise Server, connect with a personal access token.
+
+## wpta_github_lfs
+
+Filters the Git LFS endpoint of the repository, used when media is stored with Git LFS. Point it at GitHub Enterprise
+Server or a test server.
+
+Defined in `includes/class-wpta-github.php`, `WPTA_GitHub::lfs_upload()`.
+
+**Parameters**
+
+- `$url` *(string)* LFS endpoint. Default the repository's web address followed by `.git/info/lfs`.
+- `$repo` *(array)* Repository: `owner`, `repo`, `branch`, `url`.
+
+**Example**
+
+```php
+add_filter( 'wpta_github_lfs', fn( $url, $repo ) => "https://github.example.com/{$repo['owner']}/{$repo['repo']}.git/info/lfs", 10, 2 );
+```
 
 ## wpta_github_client_id
 
