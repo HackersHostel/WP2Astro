@@ -84,8 +84,9 @@ The **Activity** tab lists the last 20 runs, and the **Overview** tab shows the 
 - AI results are cached. The layout is reused while the theme and menu are unchanged, and a cleaned post is reused
   while the post is unchanged.
 - Generated files contain no timestamps, so they only change when the content does.
-- Auto-sync only renders posts that changed since the last run, and reuses the Markdown of the others. A change to
-  the permalink structure, theme, plugins, categories or WP2Astro's settings renders everything again. **Sync now**
+- Auto-sync only renders posts that changed since the last run, and reuses the Markdown of the others. A post whose
+  URL changed, such as a child page whose parent was renamed, is rendered again. A change to the permalink structure,
+  theme, plugins, categories or WP2Astro's settings renders everything again. **Sync now**
   always renders every post, because shortcodes can show content that changes on its own (latest posts and the like);
   `wp wp2astro convert --cached` reuses unchanged posts like auto-sync.
 - A commit sends GitHub only the files that changed or were removed, on top of the current head.

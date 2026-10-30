@@ -8,9 +8,11 @@ on your side.
 
 - WordPress 6.5 or later and PHP 8.0 or later.
 - An administrator account (WP2Astro needs the `manage_options` capability).
-- Optional: a ChatGPT Plus or Pro plan, or an OpenRouter account, for the AI steps. See
-  [Choose an AI model](providers.md).
+- Optional: a model server you run (such as Ollama), a ChatGPT Plus or Pro plan, or an OpenRouter account, for the
+  AI steps. See [Choose an AI model](providers.md).
 - Optional: a GitHub account, to get a repository instead of a zip.
+- Optional: an Amazon S3, Cloudflare R2 or Bunny Storage account, to serve media from storage. See
+  [Choose where media goes](media.md).
 
 ## Install the plugin
 
@@ -53,7 +55,7 @@ See [Connect GitHub](github.md) for the token option and details.
 
 ## Step 3: choose what to build
 
-The last step lists what gets built. Everything is on by default:
+The last step lists what gets built. Everything except **Custom fields** is on by default:
 
 | Option | What you get |
 |---|---|
@@ -89,7 +91,21 @@ Claude Code commands; **Activity** lists every run; **Settings** holds everythin
 ## Step 5: check the result
 
 Open `CONVERSION_REPORT.md` in the repository or the zip. It lists the model used, how many entries and media files
-were converted, and anything that needs a look, such as shortcodes the AI could not replace.
+were converted, and anything that needs a look, such as shortcodes the AI could not replace or media files that were
+not copied.
+
+The site has the same URLs as WordPress:
+
+- Every post, page and custom post type entry, at its permalink.
+- The blog, category, tag and custom post type archives, with `/page/2/`, `/page/3/` and so on, as many posts per page
+  as **Settings → Reading** in WordPress.
+- Author archives, such as `/author/your-name/`, and, when your site uses pretty permalinks, year and month archives,
+  such as `/2024/` and `/2024/01/`.
+- `feed.xml`, `sitemap.xml`, `robots.txt` and the search page, when they are on.
+
+Your theme's CSS, images and fonts are copied to `public/theme/`. Scripts the theme loads on the homepage, such as
+its menu toggle, are copied too (with jQuery, when the theme uses it), so menus keep working. The default layout adds a
+**Menu** button of its own for small screens.
 
 To see the site, either:
 
@@ -113,5 +129,5 @@ To see the site, either:
 ## What isn't converted
 
 A static site has no server-side code, so these don't carry over: comments, forms, WooCommerce and other features that
-need a server, sidebar widgets, and custom fields (such as ACF) beyond what the post content renders. Drafts, private
-and password-protected posts are never exported.
+need a server, and sidebar widgets. Custom fields (post meta and ACF) are only exported when you turn on
+**Custom fields**. Drafts, private and password-protected posts are never exported.
