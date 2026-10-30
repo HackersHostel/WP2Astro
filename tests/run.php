@@ -43,6 +43,11 @@ $done  = array( 'status' => 'done', 'started' => 100, 'entries' => 20, 'files' =
 $state = fn( array $runs, int $changed = 0, bool $gh = true, bool $auto = false, string $running = '' ) => WPTA_Admin::hero_state( $runs, $changed, $gh, $auto, $running )['state'];
 check( 'hero: never run', $state( array() ), 'new' );
 check( 'hero: running wins', $state( array( $done ), 500, true, false, 'abcdefabcdef' ), 'running' );
+$open = array( 'abcdefabcdef' => array( 'status' => 'running', 'trigger' => 'manual', 'started' => 300 ), 'x' => $done );
+check( 'hero: a manual run can be started again', WPTA_Admin::hero_state( $open, 0, true, false, 'abcdefabcdef' )['restart'], true );
+$open['abcdefabcdef']['trigger'] = 'auto';
+check( 'hero: a background run is not restarted', WPTA_Admin::hero_state( $open, 0, true, false, 'abcdefabcdef' )['restart'], false );
+check( 'hero: nothing running, nothing to restart', WPTA_Admin::hero_state( $open, 0, true, false, '' )['restart'], false );
 check( 'hero: last run failed', $state( array( array( 'status' => 'error', 'started' => 200, 'error' => 'x' ), $done ) ), 'failed' );
 check( 'hero: content changed after the last good run', $state( array( $done ), 150 ), 'behind' );
 check( 'hero: changes before the last run are synced', $state( array( $done ), 90 ), 'ok' );

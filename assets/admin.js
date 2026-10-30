@@ -467,7 +467,14 @@
         phase.textContent = e.message;
         phase.classList.add('is-bad');
         if (status) mark('error', true);
-        if (e.data && e.data.busy && window.confirm(e.message + '\n\nStart anyway?')) return start(true);
+        if (e.data && e.data.busy) {
+          if (window.confirm(e.message + '\n\nStart anyway?')) return start(true);
+          // Leave the other run alone and put the screen back.
+          view.hidden = true;
+          if (overview) overview.hidden = false;
+          if (wizard) form.hidden = false;
+          return null;
+        }
         const row = document.createElement('p');
         row.className = 'wpta-actions';
         row.appendChild(button('Try again', { icon: 'sync', primary: true, onClick: () => start(false) }));
@@ -485,7 +492,8 @@
   })();
 
   const startBtn = $('#wpta-start');
-  if (startBtn && run) startBtn.addEventListener('click', () => run(false));
+  // data-force: an abandoned run from this screen holds the lock, and the button says Start again.
+  if (startBtn && run) startBtn.addEventListener('click', () => run(startBtn.dataset.force === '1'));
 
   /* ---------------------------------------------------------------- Setup */
 

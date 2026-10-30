@@ -306,15 +306,17 @@ class WPTA_Admin {
 	/**
 	 * What the status card on the Overview tab says. Pure (unit-tested).
 	 *
-	 * @param array  $runs    WPTA_Sync::runs(), newest first.
+	 * @param array  $runs    WPTA_Sync::runs(), keyed by job id, newest first.
 	 * @param int    $changed When published content last changed (WPTA_Sync::changed()).
 	 * @param bool   $gh      Whether GitHub is connected.
 	 * @param bool   $auto    Whether auto-sync is on.
 	 * @param string $running Id of a running job, or ''.
-	 * @return array{state:string, badge:string, title:string, text:string, last:?array}
+	 * @return array{state:string, badge:string, title:string, text:string, last:?array, restart:bool}
+	 *         restart: a run started from this screen holds the lock, and it only moves while that tab is open.
 	 */
 	public static function hero_state( array $runs, int $changed, bool $gh, bool $auto, string $running ): array {
-		$runs   = array_values( $runs );
+		$restart = '' !== $running && 'manual' === ( $runs[ $running ]['trigger'] ?? '' );
+		$runs    = array_values( $runs );
 		$latest = $runs[0] ?? null;
 		$last   = null;
 		foreach ( $runs as $r ) {
@@ -324,7 +326,9 @@ class WPTA_Admin {
 			}
 		}
 		$auto = $auto && $gh;
-		if ( '' !== $running ) {
+		if ( $restart ) {
+			$out = array( 'running', 'Running', 'A run from this screen hasn’t finished', 'It only moves while the tab that started it is open. If you closed or reloaded that tab, click Start again.' );
+		} elseif ( '' !== $running ) {
 			$out = array( 'running', 'Running', 'A sync is running', 'It runs in the background. Reload this page to see when it’s done.' );
 		} elseif ( $latest && 'error' === ( $latest['status'] ?? '' ) ) {
 			$out = array( 'failed', 'Last run stopped', 'The last run didn’t finish', (string) ( $latest['error'] ?? '' ) );
@@ -347,7 +351,7 @@ class WPTA_Admin {
 				$gh ? 'Every published entry is on GitHub. Edits made in the repo are kept on the next sync.' : 'Download the zip, or connect GitHub to keep it in sync.',
 			);
 		}
-		return array( 'state' => $out[0], 'badge' => $out[1], 'title' => $out[2], 'text' => $out[3], 'last' => $last );
+		return array( 'state' => $out[0], 'badge' => $out[1], 'title' => $out[2], 'text' => $out[3], 'last' => $last, 'restart' => $restart );
 	}
 
 	/**
@@ -1000,7 +1004,8 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				<?php if ( '' !== $hero['text'] ) : ?><p><?php echo esc_html( $hero['text'] ); ?></p><?php endif; ?>
 				<?php if ( $meta ) : ?><p class="wpta-meta"><?php echo implode( ' · ', $meta ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above. ?></p><?php endif; ?>
 				<p class="wpta-actions">
-					<button type="button" class="wpta-btn is-primary" id="wpta-start" <?php disabled( 'running' === $hero['state'] ); ?>><?php echo self::icon( 'sync', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?><span><?php echo esc_html( 'running' === $hero['state'] ? 'Running…' : ( $gh && $last ? 'Sync now' : 'Convert to Astro' ) ); ?></span></button>
+					<?php // Never disabled: while a run holds the lock, admin.js asks before starting anyway. ?>
+					<button type="button" class="wpta-btn is-primary" id="wpta-start" <?php echo $hero['restart'] ? 'data-force="1"' : ''; ?>><?php echo self::icon( 'sync', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?><span><?php echo esc_html( $hero['restart'] ? 'Start again' : ( $gh && $last ? 'Sync now' : 'Convert to Astro' ) ); ?></span></button>
 					<?php if ( $repo ) : ?>
 						<a class="wpta-btn" href="<?php echo esc_url( $repo ); ?>" target="_blank" rel="noopener"><?php echo self::logo( 'github', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Open repo</a>
 					<?php endif; ?>
