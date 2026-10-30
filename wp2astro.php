@@ -30,6 +30,8 @@ require_once WPTA_DIR . 'includes/class-wpta-markdown.php';
 require_once WPTA_DIR . 'includes/class-wpta-scaffold.php';
 require_once WPTA_DIR . 'includes/class-wpta-agent-kit.php';
 require_once WPTA_DIR . 'includes/class-wpta-exporter.php';
+require_once WPTA_DIR . 'includes/class-wpta-media.php';
+require_once WPTA_DIR . 'includes/class-wpta-storage.php';
 require_once WPTA_DIR . 'includes/class-wpta-ai.php';
 require_once WPTA_DIR . 'includes/class-wpta-github.php';
 require_once WPTA_DIR . 'includes/class-wpta-sync.php';

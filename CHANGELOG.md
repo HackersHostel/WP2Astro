@@ -10,6 +10,31 @@
   and shows the commands to finish the site in Claude Code.
 - **Settings → Plugin data**: **Clear data** removes the AI cache, run history and stored zips; **Run the setup
   again** brings back the setup.
+- **Settings → Media** (#17): copy media into the repo (default, now capped at 25 MB per file), store it with Git
+  LFS, leave it on WordPress, or upload it to Amazon S3, an S3-compatible service, Cloudflare R2 or Bunny Storage with
+  a **Test storage** button. Files over the limit keep their WordPress address and are listed in the report. Blob
+  uploads use far less PHP memory. New filter `wpta_max_media_bytes`.
+- Archives (#19): category, tag and custom post type archives are paginated like the blog, and year, month and author
+  archives are generated at their WordPress URLs and listed in the sitemap. Entries gain `authorSlug` in frontmatter,
+  and bylines link to the author archive.
+- Theme JavaScript (#20): scripts the theme loads on the homepage (and jQuery, when it does) are copied and loaded on
+  every page, so menu toggles keep working. AI layouts may load them; the default layout gets a small-screen menu
+  toggle of its own when the theme has none.
+- **Custom fields** (#22): an opt-in switch under **What to build** writes public post meta and ACF fields to a
+  `fields:` frontmatter key, with sorted keys. New filter `wpta_entry_fields`.
+- Netlify (#21): `netlify.toml` with the build settings and 301s for `?p=`, `?page_id=` and `?s=` links, kept out of
+  `public/_redirects` because Cloudflare Pages reads that file too.
+- Large sites (#14, #15, #16): auto-sync renders only posts that changed (`wp wp2astro convert --cached` does the same);
+  files are hashed as they are written instead of all at once; the zip is built in steps; `?p=` links are collected
+  while converting; commits send GitHub only changed and removed paths on top of the current tree.
+- Fixed (#10): permalinks ending in `.html` kept a trailing slash and changed URL. They are now files in `dist/`, with
+  matching canonical links and sitemap entries.
+- Fixed (#11): text that looks like Markdown (`[note](sic)`, `__init__`, `&copy;`, a line of `---` or `===`) changed
+  meaning after conversion. It is now escaped.
+- Fixed (#12): two runs started at the same moment could both run. The run lock is now taken atomically, a run that
+  loses its lock stops, and a job is only stepped by one request at a time.
+- CI (#23, #24): builds a fixture Astro site with every URL case and checks `dist/` and `npm start`, and converts a
+  real WordPress site against the mocks (AI, GitHub with LFS, S3 storage) with a visual comparison of the result.
 - New logo: the teal WA glyph, in the dashboard, the admin menu, the plugin icons and the banner.
 - **Local model** provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio,
   llama.cpp, vLLM) through any OpenAI-compatible **Server URL**.

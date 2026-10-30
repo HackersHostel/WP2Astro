@@ -99,6 +99,25 @@ class WPTA_Sync {
 		);
 	}
 
+	/**
+	 * Tree entries for a commit on top of the current head tree (base_tree): only paths that change. Deleted paths
+	 * get a null sha. Everything else, including files someone else added, stays as it is. Pure (unit-tested).
+	 *
+	 * @param array $plan From plan().
+	 * @return array<int, array{path:string, mode:string, type:string, sha:?string}>
+	 */
+	public static function tree_changes( array $plan ): array {
+		$out = array();
+		foreach ( $plan['changed'] as $path ) {
+			$out[ $path ] = array( 'path' => $path, 'mode' => '100644', 'type' => 'blob', 'sha' => $plan['tree'][ $path ] );
+		}
+		foreach ( $plan['deleted'] as $path ) {
+			$out[ $path ] = array( 'path' => $path, 'mode' => '100644', 'type' => 'blob', 'sha' => null );
+		}
+		ksort( $out );
+		return array_values( $out );
+	}
+
 	/** Manifest to remember after a successful push: our shas for files we own, previous shas for kept ones. */
 	public static function next_manifest( array $local, array $plan, array $manifest ): array {
 		$out = array();
@@ -145,22 +164,93 @@ class WPTA_Sync {
 
 	/* ---------------------------------------------------------------- Lock */
 
+	/** A lock nobody has touched for this long belongs to a run that died; the next start takes it over. */
+	const STALE = 10 * MINUTE_IN_SECONDS;
+
 	/** Id of a job that is running right now (touched in the last 10 minutes), or ''. */
 	public static function running(): string {
-		$lock = get_option( self::LOCK );
-		if ( ! is_array( $lock ) || ( $lock['time'] ?? 0 ) < time() - 10 * MINUTE_IN_SECONDS ) {
+		$lock = self::read_lock();
+		if ( ! $lock || $lock['time'] < time() - self::STALE ) {
 			return '';
 		}
-		return (string) $lock['id'];
+		return $lock['id'];
 	}
 
-	public static function lock( string $id ): void {
-		update_option( self::LOCK, array( 'id' => $id, 'time' => time() ), false );
+	/**
+	 * Take the conversion lock for job $id. Atomic: the lock is a row that only one INSERT can create, so two starts
+	 * at the same moment (two tabs, or the button while auto-sync fires) can't both win. A stale lock is taken over.
+	 *
+	 * @param bool $force Take the lock even from a run that looks alive ("Start anyway").
+	 */
+	public static function acquire( string $id, bool $force = false ): bool {
+		global $wpdb;
+		for ( $try = 0; $try < 2; $try++ ) {
+			$won = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", self::LOCK, maybe_serialize( array( 'id' => $id, 'time' => time() ) ) ) );
+			self::forget();
+			if ( 1 === (int) $won ) {
+				return true;
+			}
+			$raw  = self::read_raw();
+			$lock = self::read_lock();
+			if ( $lock && $lock['id'] === $id ) {
+				return true;
+			}
+			if ( null !== $raw && $lock && $lock['time'] >= time() - self::STALE && ! $force ) {
+				return false;
+			}
+			// Stale, unreadable or forced: delete exactly the row we read, so a lock someone took meanwhile survives.
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK, (string) $raw ) );
+			self::forget();
+		}
+		return false;
+	}
+
+	/** Whether job $id still holds the lock (another run may have taken over a stale or forced lock). */
+	public static function holds( string $id ): bool {
+		$lock = self::read_lock();
+		return $lock && $lock['id'] === $id;
+	}
+
+	/** Refresh the lock's time while job $id works, so it never looks stale. */
+	public static function heartbeat( string $id ): void {
+		global $wpdb;
+		$raw = self::read_raw();
+		if ( null === $raw || ! self::holds( $id ) ) {
+			return;
+		}
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", maybe_serialize( array( 'id' => $id, 'time' => time() ) ), self::LOCK, $raw ) );
+		self::forget();
 	}
 
 	public static function unlock( string $id ): void {
-		if ( self::running() === $id ) {
-			delete_option( self::LOCK );
+		global $wpdb;
+		$raw = self::read_raw();
+		if ( null !== $raw && self::holds( $id ) ) {
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK, $raw ) );
+			self::forget();
+		}
+	}
+
+	/** The lock row as stored, read past the object cache. */
+	private static function read_raw(): ?string {
+		global $wpdb;
+		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK ) );
+		return null === $raw ? null : (string) $raw;
+	}
+
+	/** @return array{id:string, time:int}|null */
+	private static function read_lock(): ?array {
+		$lock = maybe_unserialize( (string) self::read_raw() );
+		return is_array( $lock ) && isset( $lock['id'] ) ? array( 'id' => (string) $lock['id'], 'time' => (int) ( $lock['time'] ?? 0 ) ) : null;
+	}
+
+	/** The lock is written with SQL, so drop any cached copy get_option() might hold. */
+	private static function forget(): void {
+		wp_cache_delete( self::LOCK, 'options' );
+		$none = wp_cache_get( 'notoptions', 'options' );
+		if ( is_array( $none ) && isset( $none[ self::LOCK ] ) ) {
+			unset( $none[ self::LOCK ] );
+			wp_cache_set( 'notoptions', $none, 'options' );
 		}
 	}
 
@@ -208,11 +298,13 @@ class WPTA_Sync {
 		if ( ! $s['auto_sync'] || '' === $s['github_token'] ) {
 			return;
 		}
-		if ( self::running() ) {
+		try {
+			$job = WPTA_Job::create( 'auto' );
+		} catch ( RuntimeException $e ) {
+			// Busy (or the job folder couldn't be made): try again later.
 			wp_schedule_single_event( time() + 5 * MINUTE_IN_SECONDS, self::HOOK );
 			return;
 		}
-		$job = WPTA_Job::create( 'auto' );
 		self::cron_step( $job->id() );
 	}
 

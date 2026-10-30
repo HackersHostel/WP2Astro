@@ -15,6 +15,7 @@ Inside WordPress, click **Help** next to the tabs at the top of the **WP2Astro**
   - [Finish the site with Claude Code](claude-code.md) — the agent kit and the `/wp2astro-*` skills
 - [Connect GitHub](github.md) — one-click connect, fine-grained tokens, private repositories
 - [Keep the site in sync](sync.md) — what is pushed, what is kept, auto-sync
+- [Choose where media goes](media.md) — the repo, Git LFS, WordPress, or S3, Cloudflare R2 and Bunny
 - [Deploy the site](deploy.md) — FlyWP and DigitalOcean, Render, or any static host
 - [Troubleshooting](troubleshooting.md) — fixes for the messages you are most likely to see
 - [Privacy and external services](privacy.md) — what is sent where, and when

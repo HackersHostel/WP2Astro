@@ -62,6 +62,10 @@ The last step lists what gets built. Everything is on by default:
 | **Site search** | Static full-text search with Pagefind; old `?s=` links land on it |
 | **Custom post types** | Public custom post types with their own folders and archives |
 | **Agent kit** | `AGENTS.md`, `CLAUDE.md` and Claude Code skills, so an AI agent can finish the site |
+| **Custom fields** | Public post meta and ACF fields in each entry's frontmatter. Off by default, because fields can hold private data |
+
+Media is copied into the repository by default. To use Git LFS, leave it on WordPress or upload it to S3, Cloudflare
+R2 or Bunny, see [Choose where media goes](media.md).
 
 Once GitHub is connected, turn on **Sync after I publish** to sync automatically. See
 [Keep the site in sync](sync.md).

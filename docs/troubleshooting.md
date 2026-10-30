@@ -106,6 +106,27 @@ empty repository by changing **Repository** in **Settings → GitHub**.
 blocking new runs after 10 minutes.
 
 **What to do:** wait a minute and try again. If you are sure nothing is running, choose to start anyway when asked.
+If you closed or reloaded the tab of a run you started, the **Overview** tab says **A run from this screen hasn't
+finished**: click **Start again**. The old run stops with "Stopped: a newer run took over" and pushes nothing.
+
+## Media upload failed
+
+**What you see:** **Test storage** says "Upload failed", or `CONVERSION_REPORT.md` lists files under **Media not
+copied** with "upload failed" and the provider's message, such as `SignatureDoesNotMatch` or `HTTP 401`.
+
+**Why:** the endpoint, bucket, region or key is wrong, or the key may not write to the bucket. Files that fail stay
+linked from WordPress, so the page still shows them.
+
+**What to do:** check the fields in **Settings → Media** against [Choose where media goes](media.md#upload-to-storage),
+click **Test storage**, then sync again. If the test uploads but can't read the file back, check the **Public URL** and
+that the bucket or zone allows public reads.
+
+## Images show as small text files after deploying
+
+**Why:** media is stored with Git LFS, and the host published the pointer files instead of downloading the images.
+
+**What to do:** turn on Git LFS support in your host's build settings, or pick another option in
+**Settings → Media**. See [Choose where media goes](media.md#copy-into-the-repo-with-git-lfs).
 
 ## GitHub didn't accept the token
 
@@ -117,7 +138,7 @@ for all repositories, then paste it again. See [Connect GitHub](github.md#connec
 
 ## Auto-sync doesn't run
 
-- Check that the dashboard header shows **Auto-sync: on** and GitHub is connected.
+- Check that **Auto-sync** is on under **Connections** on the **Overview** tab and GitHub is connected.
 - Only published posts, pages and exported custom post types start a sync; drafts don't.
 - On quiet sites, WP-Cron waits for the next visit. See [Auto-sync on quiet sites](sync.md#auto-sync-on-quiet-sites).
 

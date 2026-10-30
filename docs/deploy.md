@@ -8,7 +8,8 @@ WordPress links with real redirects, or as plain static files on any static host
 | Hosts | FlyWP + DigitalOcean, Render, any VPS, Railway… | Netlify, Cloudflare Pages, GitHub Pages, any web server… |
 | Changed slugs | 301 redirects | 301 on Netlify and Cloudflare Pages (`public/_redirects`); redirect pages elsewhere |
 | `/feed/`, `/wp-sitemap.xml` | 301 redirects | 301 on Netlify and Cloudflare Pages; not redirected elsewhere |
-| `?p=123`, `?page_id=7`, `?s=…` | 301 redirects | Not redirected |
+| `?p=123`, `?page_id=7`, `?s=…` | 301 redirects | 301 on Netlify (`netlify.toml`); not redirected elsewhere |
+| Permalinks ending in `.html` | Same URL | Same URL; Cloudflare Pages redirects `/x.html` to `/x` |
 | Search | Yes | Yes |
 
 All options need Node.js 22.23.4 or later to build.
@@ -67,8 +68,12 @@ Render sets the `PORT` environment variable, and `server.mjs` listens on it. Ren
 3. Deploy.
 
 Netlify and Cloudflare Pages read `public/_redirects`, so changed slugs and old feed and sitemap links return 301
-redirects. Other hosts get small redirect pages for changed slugs instead. Plain links such as `?p=123` need
+redirects. Other hosts get small redirect pages for changed slugs instead. Plain links such as `?p=123` redirect on
+Netlify, which also reads them from `netlify.toml` along with the build command and output folder; elsewhere they need
 `npm start`.
+
+If media is stored with Git LFS, the host must download LFS files when it builds. See
+[Choose where media goes](media.md).
 
 ## Redeploy after a sync
 

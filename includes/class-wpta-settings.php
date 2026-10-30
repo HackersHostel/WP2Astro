@@ -11,7 +11,7 @@ class WPTA_Settings {
 	const SLUG   = 'wp2astro';
 
 	/** Fields in `keys` and these top-level fields are stored encrypted. */
-	const SECRETS = array( 'github_token' );
+	const SECRETS = array( 'github_token', 'cdn_secret' );
 
 	/** Decrypted settings for this request; cleared by update(). */
 	private static ?array $cache = null;
@@ -101,6 +101,15 @@ class WPTA_Settings {
 			'search'       => 1,
 			'cpts'         => 1,
 			'agent_kit'    => 1,
+			'fields'       => 0,
+			'media_mode'   => 'repo',
+			'cdn_provider' => 's3',
+			'cdn_endpoint' => '',
+			'cdn_region'   => '',
+			'cdn_bucket'   => '',
+			'cdn_key_id'   => '',
+			'cdn_secret'   => '',
+			'cdn_url'      => '',
 		);
 	}
 
@@ -236,7 +245,27 @@ class WPTA_Settings {
 
 		$repo              = preg_replace( '/[^A-Za-z0-9._-]/', '-', (string) wp_unslash( $in['repo_name'] ?? '' ) );
 		$out['repo_name']  = $repo ?: $old['repo_name'];
-		foreach ( array( 'ai_layout', 'ai_cleanup', 'repo_private', 'auto_sync', 'seo', 'feeds', 'search', 'cpts', 'agent_kit' ) as $flag ) {
+		// Media storage. The secret works like the other keys: blank keeps the saved one.
+		if ( isset( $in['media_mode'] ) ) {
+			$out['media_mode'] = isset( WPTA_Media::MODES[ $in['media_mode'] ] ) ? $in['media_mode'] : $old['media_mode'];
+		}
+		if ( isset( $in['cdn_provider'] ) ) {
+			$out['cdn_provider'] = isset( WPTA_Storage::PROVIDERS[ $in['cdn_provider'] ] ) ? $in['cdn_provider'] : $old['cdn_provider'];
+			foreach ( array( 'cdn_endpoint', 'cdn_url' ) as $k ) {
+				$out[ $k ] = esc_url_raw( trim( wp_unslash( $in[ $k ] ?? '' ) ) );
+			}
+			foreach ( array( 'cdn_region', 'cdn_bucket', 'cdn_key_id' ) as $k ) {
+				$out[ $k ] = trim( sanitize_text_field( wp_unslash( $in[ $k ] ?? '' ) ) );
+			}
+			$secret = trim( sanitize_text_field( wp_unslash( $in['cdn_secret'] ?? '' ) ) );
+			if ( '' !== $secret ) {
+				$out['cdn_secret'] = $secret;
+			} elseif ( ! empty( $in['clear_cdn_secret'] ) ) {
+				$out['cdn_secret'] = '';
+			}
+		}
+
+		foreach ( array( 'ai_layout', 'ai_cleanup', 'repo_private', 'auto_sync', 'seo', 'feeds', 'search', 'cpts', 'agent_kit', 'fields' ) as $flag ) {
 			$out[ $flag ] = empty( $in[ $flag ] ) ? 0 : 1;
 		}
 		if ( 'claude' === $out['provider'] ) {

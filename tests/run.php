@@ -25,6 +25,8 @@ require __DIR__ . '/../includes/class-wpta-markdown.php';
 require __DIR__ . '/../includes/class-wpta-exporter.php';
 require __DIR__ . '/../includes/class-wpta-updater.php';
 require __DIR__ . '/../includes/class-wpta-admin.php';
+require __DIR__ . '/../includes/class-wpta-media.php';
+require __DIR__ . '/../includes/class-wpta-storage.php';
 
 $fails = 0;
 $count = 0;
@@ -36,6 +38,64 @@ function check( string $name, $actual, $expected ): void {
 		echo "FAIL {$name}\n  expected: " . var_export( $expected, true ) . "\n  actual:   " . var_export( $actual, true ) . "\n";
 	}
 }
+
+/* ------------------------------------------------------------------ Media */
+
+$doc = "---\nfeaturedImage: \"/wp-content/uploads/2024/01/a.jpg\"\n---\n\n![x](/wp-content/uploads/2024/01/a.jpg)\n\n<img src=\"/wp-content/uploads/b.png\" srcset=\"/wp-content/uploads/b.png 1x, /wp-content/uploads/b-2x.png 2x\">\nSee /wp-content/uploads-old/ and https://other.test/wp-content/uploads/c.jpg\n";
+$out = WPTA_Media::rewrite( $doc, '/wp-content/uploads', 'https://cdn.test/wp-content/uploads' );
+check( 'media: frontmatter image', str_contains( $out, 'featuredImage: "https://cdn.test/wp-content/uploads/2024/01/a.jpg"' ), true );
+check( 'media: markdown image', str_contains( $out, '](https://cdn.test/wp-content/uploads/2024/01/a.jpg)' ), true );
+check( 'media: srcset entries', str_contains( $out, 'srcset="https://cdn.test/wp-content/uploads/b.png 1x, https://cdn.test/wp-content/uploads/b-2x.png 2x"' ), true );
+check( 'media: other paths and hosts untouched', str_contains( $out, 'See /wp-content/uploads-old/ and https://other.test/wp-content/uploads/c.jpg' ), true );
+check( 'media: no base, no change', WPTA_Media::rewrite( $doc, '/wp-content/uploads', '' ), $doc );
+$one = "![a](/wp-content/uploads/a.jpg) ![b](/wp-content/uploads/a.jpg.webp)\nfeaturedImage: \"/wp-content/uploads/a.jpg\"";
+check( 'media: relink one file only', WPTA_Media::relink( $one, '/wp-content/uploads/a.jpg', 'https://wp.test/wp-content/uploads/a.jpg' ), "![a](https://wp.test/wp-content/uploads/a.jpg) ![b](/wp-content/uploads/a.jpg.webp)\nfeaturedImage: \"https://wp.test/wp-content/uploads/a.jpg\"" );
+check( 'media: lfs pointer', WPTA_Media::lfs_pointer( str_repeat( 'a', 64 ), 12345 ), "version https://git-lfs.github.com/spec/v1\noid sha256:" . str_repeat( 'a', 64 ) . "\nsize 12345\n" );
+$tmp = tempnam( sys_get_temp_dir(), 'wpta' );
+file_put_contents( $tmp, str_repeat( "media bytes\n", 5000 ) );
+check( 'media: streamed blob id equals the in-memory one', WPTA_GitHub::blob_sha_file( $tmp ), WPTA_GitHub::blob_sha( (string) file_get_contents( $tmp ) ) );
+unlink( $tmp );
+
+// AWS's documented Signature Version 4 example (GET Object, examplebucket/test.txt, 2013-05-24).
+$empty = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+check(
+	'storage: SigV4 matches the AWS example',
+	WPTA_Storage::sigv4( 'GET', 'examplebucket.s3.amazonaws.com', '/test.txt', array( 'range' => 'bytes=0-9', 'x-amz-content-sha256' => $empty, 'x-amz-date' => '20130524T000000Z' ), $empty, 'AKIAIOSFODNN7EXAMPLE', 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', 'us-east-1' ),
+	'AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request, SignedHeaders=host;range;x-amz-content-sha256;x-amz-date, Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41'
+);
+
+/* ------------------------------------------------------------ Commit tree */
+
+$p = WPTA_Sync::plan( array( 'a.md' => 'a2', 'b.md' => 'b1', 'new.md' => 'n1', 'kept.md' => 'k-ours' ), array( 'a.md' => 'a1', 'b.md' => 'b1', 'gone.md' => 'g1', 'kept.md' => 'k-edited', 'theirs.md' => 't1' ), array( 'a.md' => 'a1', 'b.md' => 'b1', 'gone.md' => 'g1', 'kept.md' => 'k-old' ) );
+check( 'tree: only changed and deleted paths, sorted', WPTA_Sync::tree_changes( $p ), array(
+	array( 'path' => 'a.md', 'mode' => '100644', 'type' => 'blob', 'sha' => 'a2' ),
+	array( 'path' => 'gone.md', 'mode' => '100644', 'type' => 'blob', 'sha' => null ),
+	array( 'path' => 'new.md', 'mode' => '100644', 'type' => 'blob', 'sha' => 'n1' ),
+) );
+check( 'tree: nothing to send when nothing changed', WPTA_Sync::tree_changes( WPTA_Sync::plan( array( 'a.md' => 'a1' ), array( 'a.md' => 'a1' ), array( 'a.md' => 'a1' ) ) ), array() );
+
+/* -------------------------------------------------------- Netlify redirects */
+
+$toml = WPTA_Exporter::netlify_toml( array( 'paths' => array(), 'query' => array( 'p=123' => '/2010/05/hello/', 'page_id=7' => '/café/', 's' => '/search/' ) ) );
+check( 'netlify: build settings', str_contains( $toml, "[build]\n  command = \"npm run build\"\n  publish = \"dist\"\n" ), true );
+check( 'netlify: ?p= rule', str_contains( $toml, "[[redirects]]\n  from = \"/\"\n  to = \"/2010/05/hello/\"\n  status = 301\n  force = true\n  query = { p = \"123\" }\n" ), true );
+check( 'netlify: non-ASCII target is percent-encoded', str_contains( $toml, 'to = "/caf%C3%A9/"' ), true );
+check( 'netlify: search keeps the term', str_contains( $toml, "to = \"/search/?q=:s\"\n  status = 301\n  force = true\n  query = { s = \":s\" }" ), true );
+
+/* ------------------------------------------------------- HTML to Markdown */
+
+$md = fn( string $html ) => WPTA_Markdown::convert( $html );
+check( 'md: brackets stay text', $md( '<p>See [note](sic)</p>' ), "See \\[note\\](sic)\n" );
+check( 'md: an entity typed as text', $md( '<p>&amp;copy;</p>' ), "&amp;copy;\n" );
+check( 'md: underscores stay text', $md( '<p>__dunder__ and snake_case</p>' ), "\\_\\_dunder\\_\\_ and snake\\_case\n" );
+check( 'md: a paragraph of dashes is not a rule', $md( '<p>---</p>' ), "\\---\n" );
+check( 'md: spaced dashes are not a rule', $md( '<p>- - -</p>' ), "\\- - -\n" );
+check( 'md: === after a line break is not a heading', $md( '<p>Title<br>===</p>' ), "Title  \n\\===\n" );
+check( 'md: --- after a line break is not a heading', $md( '<p>Title<br>---</p>' ), "Title  \n\\---\n" );
+check( 'md: a list marker after a line break', $md( '<p>one<br>- two<br>3. three</p>' ), "one  \n\\- two  \n3\\. three\n" );
+check( 'md: link text keeps its underscores', $md( '<p><a href="/a_b/">x_y</a></p>' ), "[x\\_y](/a_b/)\n" );
+check( 'md: emphasis still converts', $md( '<p><strong>bold</strong> and <em>it</em></p>' ), "**bold** and *it*\n" );
+check( 'md: a real heading is untouched', $md( '<h2>Two_words</h2>' ), "## Two\\_words\n" );
 
 /* ------------------------------------------------------------ Dashboard */
 
@@ -148,6 +208,10 @@ check( 'finalize: adds <head> when missing', str_contains( WPTA_AI::finalize_lay
 check( 'reject hard-coded archive link', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><a href="/2026/10/">October</a>', $ai_layout ) ), 'hard-coded link to /2026/10/… (widgets and archive links must be left out).' );
 check( 'reject hard-coded category link', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><a href="/category/x/">X</a>', $ai_layout ) ), 'hard-coded link to /category/… (widgets and archive links must be left out).' );
 check( 'reject className', WPTA_AI::validate_layout( str_replace( '<nav>', '<nav className="x">', $ai_layout ) ), 'contains forbidden code: className=' );
+check( 'allow a copied theme script', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><script is:inline src="/theme/js/navigation.js" defer></script>', $ai_layout ) ), '' );
+check( 'allow jQuery from wp-includes', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><script src="/wp-includes/js/jquery/jquery.min.js"></script>', $ai_layout ) ), '' );
+check( 'reject an inline script', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><script>alert(1)</script>', $ai_layout ) ), 'contains a <script> that is not one of the theme\'s copied scripts.' );
+check( 'reject an outside script', WPTA_AI::validate_layout( str_replace( '<slot />', '<slot /><script src="https://evil.test/x.js"></script>', $ai_layout ) ), 'contains a <script> that is not one of the theme\'s copied scripts.' );
 check( 'reject foreign import', WPTA_AI::validate_layout( str_replace( "import site from '../site.json';", "import site from '../site.json';\nimport X from 'x';", $ai_layout ) ), "import from 'x' is not allowed." );
 
 /* -------------------------------------------------------------- LLM text */

@@ -20,6 +20,10 @@ class WPTA_CLI {
 	 * [--zip=<path>]
 	 * : Also copy the project zip to this path.
 	 *
+	 * [--cached]
+	 * : Reuse the Markdown of posts that haven't changed since the last run, like auto-sync does. Faster on big
+	 * sites; shortcodes that show changing content (latest posts…) keep their old output. Default: off.
+	 *
 	 * [--force]
 	 * : Start even if another conversion looks like it is running.
 	 *
@@ -27,23 +31,26 @@ class WPTA_CLI {
 	 *
 	 *     wp wp2astro convert
 	 *     wp wp2astro convert --no-ai --no-github --zip=./site.zip
+	 *     wp wp2astro convert --cached
 	 *
 	 * @when after_wp_load
 	 */
 	public function convert( array $args, array $assoc ): void {
-		$busy = WPTA_Sync::running();
-		if ( $busy && empty( $assoc['force'] ) ) {
-			WP_CLI::error( "Another conversion is running (job {$busy}). Use --force to start anyway." );
-		}
 		$zip = $assoc['zip'] ?? '';
-		$job = WPTA_Job::create(
-			'cli',
-			array(
-				'ai'     => (bool) WP_CLI\Utils\get_flag_value( $assoc, 'ai', true ),
-				'github' => WP_CLI\Utils\get_flag_value( $assoc, 'github', true ) && WPTA_Settings::github_connected(),
-				'zip'    => '' !== $zip,
-			)
-		);
+		try {
+			$job = WPTA_Job::create(
+				'cli',
+				array(
+					'ai'     => (bool) WP_CLI\Utils\get_flag_value( $assoc, 'ai', true ),
+					'github' => WP_CLI\Utils\get_flag_value( $assoc, 'github', true ) && WPTA_Settings::github_connected(),
+					'zip'    => '' !== $zip,
+					'force'  => ! empty( $assoc['force'] ),
+					'cached' => ! empty( $assoc['cached'] ),
+				)
+			);
+		} catch ( RuntimeException $e ) {
+			WP_CLI::error( $e->getMessage() . ( WPTA_Job::BUSY === $e->getCode() ? ' Use --force to start anyway.' : '' ) );
+		}
 		WP_CLI::log( 'Job ' . $job->id() );
 		$job->run_for( PHP_INT_MAX, fn( $line, $pct ) => WP_CLI::log( sprintf( '[%3d%%] %s', $pct, $line ) ) );
 

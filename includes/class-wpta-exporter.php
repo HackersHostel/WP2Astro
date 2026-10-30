@@ -8,7 +8,6 @@ class WPTA_Exporter {
 
 	const ASSET_EXT       = array( 'css', 'png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'avif', 'ico', 'woff', 'woff2', 'ttf', 'otf', 'eot' );
 	const MAX_ASSET_BYTES = 5 * MB_IN_BYTES;
-	const MAX_MEDIA_BYTES = 50 * MB_IN_BYTES;
 	/** Commerce and builder internals: not content a static site can serve. */
 	const SKIP_TYPES = array( 'attachment', 'product', 'product_variation', 'shop_order', 'shop_coupon', 'elementor_library', 'wp_block', 'wp_template', 'wp_template_part', 'wp_navigation' );
 
@@ -66,7 +65,7 @@ class WPTA_Exporter {
 
 	/* -------------------------------------------------------------- Site data */
 
-	public static function site_data( array $stylesheets ): array {
+	public static function site_data( array $stylesheets, array $scripts = array() ): array {
 		$cats = array();
 		foreach ( get_categories( array( 'hide_empty' => true ) ) as $t ) {
 			$cats[] = array( 'slug' => $t->slug, 'name' => html_entity_decode( $t->name, ENT_QUOTES ), 'path' => self::decode_path( self::rel_url( get_term_link( $t ) ) ) );
@@ -93,6 +92,25 @@ class WPTA_Exporter {
 			);
 		}
 
+		// Author archives (/author/name/) for everyone with published entries.
+		$authors = array();
+		foreach ( get_users( array( 'has_published_posts' => self::post_types(), 'orderby' => 'nicename' ) ) as $u ) {
+			$authors[] = array(
+				'slug' => $u->user_nicename,
+				'name' => html_entity_decode( $u->display_name, ENT_QUOTES ),
+				'path' => self::decode_path( self::rel_url( get_author_posts_url( $u->ID, $u->user_nicename ) ) ),
+			);
+		}
+
+		// Date archives (/2024/, /2024/01/) as WordPress builds them; only with pretty permalinks.
+		$dates = array();
+		if ( get_option( 'permalink_structure' ) ) {
+			$dates = array(
+				'year'  => str_replace( '1970', '{y}', self::rel_url( get_year_link( 1970 ) ) ),
+				'month' => str_replace( array( '1970', '/12/' ), array( '{y}', '/{m}/' ), self::rel_url( get_month_link( 1970, 12 ) ) ),
+			);
+		}
+
 		return array(
 			'title'        => $name,
 			'description'  => html_entity_decode( get_bloginfo( 'description' ), ENT_QUOTES ),
@@ -107,7 +125,10 @@ class WPTA_Exporter {
 			'categories'   => $cats,
 			'tags'         => $tags,
 			'stylesheets'  => $stylesheets,
+			'scripts'      => $scripts,
 			'archives'     => $archives,
+			'authors'      => $authors,
+			'dateArchives' => $dates ? $dates : (object) array(),
 			'features'     => array(
 				'seo'      => (bool) $s['seo'],
 				'feeds'    => (bool) $s['feeds'],
@@ -243,6 +264,7 @@ class WPTA_Exporter {
 			'permalink'  => self::permalink( $post ),
 			'excerpt'    => trim( html_entity_decode( wp_strip_all_tags( $excerpt ), ENT_QUOTES ) ),
 			'author'     => get_the_author_meta( 'display_name', $post->post_author ),
+			'authorSlug' => (string) get_the_author_meta( 'user_nicename', $post->post_author ),
 			'categories' => 'post' === $post->post_type ? wp_get_post_categories( $id, array( 'fields' => 'slugs' ) ) : array(),
 			'tags'       => 'post' === $post->post_type ? wp_get_post_tags( $id, array( 'fields' => 'slugs' ) ) : array(),
 			'type'       => $post->post_type,
@@ -250,9 +272,17 @@ class WPTA_Exporter {
 		if ( $featured ) {
 			$front['featuredImage'] = $featured;
 		}
-		if ( WPTA_Settings::get()['seo'] ) {
+		$settings = WPTA_Settings::get();
+		if ( $settings['seo'] ) {
 			foreach ( self::seo( $post ) as $k => $v ) {
 				$front[ $k ] = $v;
+			}
+		}
+		if ( ! empty( $settings['fields'] ) ) {
+			$fields = self::fields( $post );
+			if ( $fields ) {
+				$front['fields'] = $fields;
+				$media           = array_values( array_unique( array_merge( $media, self::media_refs( wp_json_encode( $fields, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE ) ) ) ) );
 			}
 		}
 
@@ -266,9 +296,13 @@ class WPTA_Exporter {
 			$path = 'src/content/items/' . sanitize_key( $post->post_type ) . '/' . str_replace( '/', '--', $uri ?: $slug ) . '.md';
 		}
 
+		// Media left on WordPress or in object storage: point the links there instead of at copies in the repo.
+		$mode     = WPTA_Media::mode( $settings );
+		$markdown = WPTA_Media::rewrite( self::frontmatter( $front ) . WPTA_Markdown::convert( $html ), WPTA_Media::rel_base(), WPTA_Media::base( $mode ) );
+
 		return array(
 			'path'      => $path,
-			'markdown'  => self::frontmatter( $front ) . WPTA_Markdown::convert( $html ),
+			'markdown'  => $markdown,
 			'media'     => $media,
 			'flags'     => $flags,
 			'permalink' => $front['permalink'],
@@ -276,6 +310,83 @@ class WPTA_Exporter {
 			'type'      => $post->post_type,
 			'redirects' => self::old_slugs( $post, $front['permalink'] ),
 		);
+	}
+
+	/* ---------------------------------------------------------- Custom fields */
+
+	/** Public meta that belongs to plugins or core, not to the content. */
+	const SKIP_META = array( 'footnotes', 'enclosure', 'rank_math_', 'classic-editor-', 'wpcf7_', 'elementor_' );
+
+	/**
+	 * Custom fields for the `fields:` frontmatter key: public post meta (keys without a leading underscore) and, when
+	 * ACF is active, its formatted fields. Keys are sorted so unchanged posts give unchanged files.
+	 */
+	public static function fields( WP_Post $post ): array {
+		$fields = array();
+		foreach ( (array) get_post_meta( $post->ID ) as $key => $values ) {
+			$key = (string) $key;
+			if ( '' === $key || '_' === $key[0] ) {
+				continue;
+			}
+			foreach ( self::SKIP_META as $skip ) {
+				if ( 0 === strpos( $key, $skip ) ) {
+					continue 2;
+				}
+			}
+			$values         = array_map( 'maybe_unserialize', (array) $values );
+			$fields[ $key ] = 1 === count( $values ) ? $values[0] : $values;
+		}
+		if ( function_exists( 'get_fields' ) ) {
+			$acf = get_fields( $post->ID );
+			foreach ( is_array( $acf ) ? $acf : array() as $key => $value ) {
+				$fields[ $key ] = $value; // ACF's formatted value wins over the raw meta of the same name.
+			}
+		}
+
+		/**
+		 * Filters the custom fields written to an entry's frontmatter under `fields:`.
+		 *
+		 * Runs only when "Custom fields" is on. Remove private values here: everything returned ends up in the
+		 * generated repository. Posts, terms and users are written as small objects; strings that link to this
+		 * site become root-relative.
+		 *
+		 * @since 0.3.0
+		 *
+		 * @param array   $fields Field name => value: public post meta, then ACF fields (formatted) when ACF is active.
+		 * @param WP_Post $post   The entry.
+		 */
+		$fields = apply_filters( 'wpta_entry_fields', $fields, $post );
+		return is_array( $fields ) ? (array) self::plain( $fields ) : array();
+	}
+
+	/** JSON-safe, deterministic copy of a field value. Pure apart from permalink lookups for posts and terms. */
+	public static function plain( $v ) {
+		if ( $v instanceof WP_Post ) {
+			return array( 'id' => $v->ID, 'title' => html_entity_decode( get_the_title( $v ), ENT_QUOTES ), 'permalink' => self::permalink( $v ) );
+		}
+		if ( $v instanceof WP_Term ) {
+			return array( 'slug' => $v->slug, 'name' => html_entity_decode( $v->name, ENT_QUOTES ) );
+		}
+		if ( $v instanceof WP_User ) {
+			return array( 'name' => $v->display_name );
+		}
+		if ( is_object( $v ) ) {
+			$v = get_object_vars( $v );
+		}
+		if ( is_array( $v ) ) {
+			$out = array();
+			foreach ( $v as $k => $item ) {
+				$out[ $k ] = self::plain( $item );
+			}
+			if ( $out && array_keys( $out ) !== range( 0, count( $out ) - 1 ) ) {
+				ksort( $out, SORT_STRING );
+			}
+			return $out;
+		}
+		if ( is_string( $v ) ) {
+			return self::decode_path( self::relative( $v ) );
+		}
+		return is_scalar( $v ) || null === $v ? $v : null;
 	}
 
 	/* -------------------------------------------------------------------- SEO */
@@ -390,9 +501,10 @@ class WPTA_Exporter {
 	 *
 	 * @param array<string,string> $old_slugs old path => new path
 	 * @param string[]             $paths     Permalinks that exist (never redirected away).
+	 * @param array<string,string> $query     "p=123" / "page_id=7" => permalink, collected while converting entries.
 	 * @return array{paths:array<string,string>, query:array<string,string>}
 	 */
-	public static function redirects( array $old_slugs, array $paths, array $site ): array {
+	public static function redirects( array $old_slugs, array $paths, array $site, array $query = array() ): array {
 		$exists = array_flip( $paths );
 		$map    = array();
 		foreach ( $old_slugs as $from => $to ) {
@@ -408,12 +520,7 @@ class WPTA_Exporter {
 		}
 
 		// Plain links (?p=123, ?page_id=7) keep working.
-		$query = array();
-		foreach ( self::entry_ids() as $id ) {
-			$post = get_post( $id );
-			$key  = 'page' === $post->post_type ? 'page_id' : 'p';
-			$query[ $key . '=' . $id ] = self::permalink( $post );
-		}
+		ksort( $query, SORT_NATURAL );
 		if ( $site['features']['search'] ) {
 			$query['s'] = '/search/';
 		}
@@ -426,6 +533,29 @@ class WPTA_Exporter {
 		$out = "# Generated from WordPress. Same rules as redirects.json.\n";
 		foreach ( $r['paths'] as $from => $to ) {
 			$out .= $from . ' ' . $to . " 301\n";
+		}
+		return $out;
+	}
+
+	/**
+	 * netlify.toml: build settings, plus the plain WordPress links (?p=123, ?page_id=7, ?s=) that `_redirects` can't
+	 * hold, because Cloudflare Pages reads that file too and doesn't match query strings. Pure (unit-tested).
+	 */
+	public static function netlify_toml( array $r ): string {
+		$str = fn( string $s ) => '"' . str_replace( array( '\\', '"' ), array( '\\\\', '\\"' ), preg_replace_callback( '/[^\x20-\x7e]+/', fn( $m ) => rawurlencode( $m[0] ), $s ) ) . '"';
+		$out = "# Generated from WordPress. Netlify only: build settings and the old ?p=, ?page_id= and ?s= links.\n";
+		$out .= "# Changed slugs and feed links are in public/_redirects, which Cloudflare Pages reads too.\n\n";
+		$out .= "[build]\n  command = \"npm run build\"\n  publish = \"dist\"\n";
+		foreach ( $r['query'] as $match => $to ) {
+			if ( 's' === $match ) {
+				$param = 's';
+				$value = ':s';
+				$to    = $to . '?q=:s';
+			} else {
+				list( $param, $value ) = array_pad( explode( '=', $match, 2 ), 2, '' );
+			}
+			// force: "/" exists as a file, and Netlify only applies unforced rules when nothing is there.
+			$out .= "\n[[redirects]]\n  from = \"/\"\n  to = " . $str( $to ) . "\n  status = 301\n  force = true\n  query = { " . $param . ' = ' . $str( $value ) . " }\n";
 		}
 		return $out;
 	}
@@ -462,21 +592,51 @@ class WPTA_Exporter {
 
 	/* ------------------------------------------------------------------ Files */
 
-	/** Copy one referenced upload into the job. Returns '' on success or a reason. */
-	public static function copy_media( string $rel, string $site_dir ): string {
+	/** The file behind a referenced upload ("/wp-content/uploads/2024/01/a.jpg"), or '' if it isn't in the uploads folder. */
+	public static function media_file( string $rel ): string {
 		$up   = wp_get_upload_dir();
 		$base = rtrim( self::rel_url( $up['baseurl'] ), '/' );
-		$src  = $up['basedir'] . substr( $rel, strlen( $base ) );
-		$real = realpath( $src );
-		if ( ! $real || 0 !== strpos( $real, realpath( $up['basedir'] ) ) || ! is_file( $real ) ) {
-			return 'missing';
+		$real = realpath( $up['basedir'] . substr( $rel, strlen( $base ) ) );
+		return $real && 0 === strpos( $real, (string) realpath( $up['basedir'] ) ) && is_file( $real ) ? $real : '';
+	}
+
+	/**
+	 * Scripts the theme loads on the homepage (menu toggles and the like), copied next to its other assets, in page
+	 * order. jQuery from wp-includes comes along when the page loads it, since theme scripts often need it.
+	 *
+	 * @return string[] Root-relative script URLs for site.json.
+	 */
+	public static function theme_scripts( string $site_dir, string $home_html ): array {
+		if ( '' === $home_html || ! preg_match_all( '#<script\b[^>]*\bsrc=["\']([^"\']+)["\']#i', $home_html, $m ) ) {
+			return array();
 		}
-		if ( filesize( $real ) > self::MAX_MEDIA_BYTES ) {
-			return 'too large (> 50 MB)';
+		$roots = array( rtrim( self::rel_url( get_stylesheet_directory_uri() ), '/' ) => array( get_stylesheet_directory(), '/theme' ) );
+		if ( get_template_directory() !== get_stylesheet_directory() ) {
+			$roots[ rtrim( self::rel_url( get_template_directory_uri() ), '/' ) ] = array( get_template_directory(), '/theme-parent' );
 		}
-		$dest = $site_dir . '/public' . $rel;
-		wp_mkdir_p( dirname( $dest ) );
-		return copy( $real, $dest ) ? '' : 'copy failed';
+		$out = array();
+		foreach ( $m[1] as $src ) {
+			$path = (string) strtok( self::rel_url( html_entity_decode( $src ) ), '?' );
+			foreach ( $roots as $from => list( $dir, $to ) ) {
+				if ( 0 !== strpos( $path, $from . '/' ) ) {
+					continue;
+				}
+				$rel  = substr( $path, strlen( $from ) );
+				$real = realpath( $dir . $rel );
+				if ( $real && 0 === strpos( $real, (string) realpath( $dir ) ) && preg_match( '/\.m?js$/', $real ) && filesize( $real ) <= self::MAX_ASSET_BYTES ) {
+					wp_mkdir_p( dirname( $site_dir . '/public' . $to . $rel ) );
+					copy( $real, $site_dir . '/public' . $to . $rel );
+					$out[] = $to . $rel;
+				}
+				continue 2;
+			}
+			if ( preg_match( '#^/wp-includes/js/jquery/jquery(?:-migrate)?(?:\.min)?\.js$#', $path ) && is_readable( ABSPATH . ltrim( $path, '/' ) ) ) {
+				wp_mkdir_p( dirname( $site_dir . '/public' . $path ) );
+				copy( ABSPATH . ltrim( $path, '/' ), $site_dir . '/public' . $path );
+				$out[] = $path;
+			}
+		}
+		return array_values( array_unique( $out ) );
 	}
 
 	/**
