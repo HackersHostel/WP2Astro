@@ -1,7 +1,7 @@
 # WP-CLI commands
 
 Converts and syncs from the command line. Coding agents such as Claude Code and Codex use these commands to drive
-WP2Astro. They use the settings saved in the dashboard, and their runs appear under **Recent runs** as **WP-CLI**.
+WP2Astro. They use the settings saved in the dashboard, and their runs appear on the **Activity** tab as **WP-CLI**.
 
 ## wp wp2astro convert
 

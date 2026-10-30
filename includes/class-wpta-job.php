@@ -25,6 +25,8 @@ class WPTA_Job {
 		add_action( 'wp_ajax_wpta_start', array( __CLASS__, 'ajax_start' ) );
 		add_action( 'wp_ajax_wpta_step', array( __CLASS__, 'ajax_step' ) );
 		add_action( 'wp_ajax_wpta_runs', array( __CLASS__, 'ajax_runs' ) );
+		add_action( 'wp_ajax_wpta_stop', array( __CLASS__, 'ajax_stop' ) );
+		add_action( 'wp_ajax_wpta_clear', array( __CLASS__, 'ajax_clear' ) );
 		add_action( 'admin_post_wpta_download', array( __CLASS__, 'download' ) );
 	}
 
@@ -134,6 +136,33 @@ class WPTA_Job {
 	public static function ajax_runs(): void {
 		self::guard();
 		wp_send_json_success( array( 'runs' => array_values( WPTA_Sync::runs() ) ) );
+	}
+
+	/** Stop a job between steps. Nothing is pushed: commits are only made in the last step. */
+	public static function ajax_stop(): void {
+		self::guard();
+		$job = self::load( sanitize_key( wp_unslash( $_POST['job'] ?? '' ) ) );
+		if ( ! $job ) {
+			wp_send_json_error( array( 'message' => 'Job not found.' ), 404 );
+		}
+		$job->stop();
+		wp_send_json_success( $job->status() );
+	}
+
+	/** Delete job folders, stored zips, the AI cache and the run history. Settings and the repo stay. */
+	public static function ajax_clear(): void {
+		self::guard();
+		if ( WPTA_Sync::running() ) {
+			wp_send_json_error( array( 'message' => 'A sync is running. Clear the data when it is done.' ) );
+		}
+		if ( is_dir( self::root() ) ) {
+			foreach ( glob( self::root() . '/*', GLOB_ONLYDIR ) as $dir ) {
+				self::rrmdir( $dir );
+			}
+		}
+		delete_option( WPTA_Sync::RUNS );
+		delete_option( 'wpta_last_layout_log' );
+		wp_send_json_success( array( 'message' => 'Cleared. The next sync calls the AI again for the layout.' ) );
 	}
 
 	public static function download(): void {
@@ -260,6 +289,17 @@ class WPTA_Job {
 		$this->save();
 	}
 
+	public function stop(): void {
+		if ( $this->done() ) {
+			return;
+		}
+		$this->s['phase']           = 'error';
+		$this->s['result']['error'] = 'Stopped. Nothing was pushed.';
+		$this->say( 'Stopped by ' . wp_get_current_user()->user_login . '.' );
+		$this->finish();
+		$this->save();
+	}
+
 	/** Run steps for up to $seconds (cron and CLI). */
 	public function run_for( int $seconds, ?callable $on_log = null ): void {
 		$until = microtime( true ) + $seconds;
@@ -278,17 +318,22 @@ class WPTA_Job {
 		WPTA_Sync::record(
 			$this->id(),
 			array(
-				'finished' => time(),
-				'status'   => 'error' === $this->s['phase'] ? 'error' : 'done',
-				'entries'  => $this->s['report']['entries'],
-				'files'    => count( $this->s['files'] ),
-				'changed'  => $r['changed'] ?? null,
-				'deleted'  => $r['deleted'] ?? null,
-				'kept'     => $r['kept'] ?? array(),
-				'repo'     => $r['repo'] ?? '',
-				'commit'   => $r['commit'] ?? '',
-				'zip'      => $r['zip'] ?? '',
-				'error'    => $r['error'] ?? '',
+				'finished'  => time(),
+				'status'    => 'error' === $this->s['phase'] ? 'error' : 'done',
+				'entries'   => $this->s['report']['entries'],
+				'files'     => count( $this->s['files'] ),
+				'redirects' => (int) ( $this->s['report']['redirects'] ?? 0 ),
+				'media'     => (int) $this->s['report']['media'],
+				'seo'       => (string) $this->s['report']['seo'],
+				'flagged'   => count( $this->s['flagged'] ),
+				'cleaned'   => count( $this->s['report']['cleaned'] ),
+				'changed'   => $r['changed'] ?? null,
+				'deleted'   => $r['deleted'] ?? null,
+				'kept'      => $r['kept'] ?? array(),
+				'repo'      => $r['repo'] ?? '',
+				'commit'    => $r['commit'] ?? '',
+				'zip'       => $r['zip'] ?? '',
+				'error'     => $r['error'] ?? '',
 			)
 		);
 		WPTA_Sync::unlock( $this->id() );

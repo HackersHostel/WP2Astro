@@ -60,7 +60,7 @@ Defined in `includes/class-wpta-settings.php`, `WPTA_Settings::provider()`.
 **Parameters**
 
 - `$p` *(array)* The provider definition, resolved with the saved settings.
-  - `id` *(string)* Provider ID: `'local'`, `'openrouter'`, `'chatgpt'` or `'none'`.
+  - `id` *(string)* Provider ID: `'local'`, `'openrouter'`, `'chatgpt'`, `'claude'` or `'none'`.
   - `label` *(string)* Name shown in the dashboard.
   - `group` *(string)* `'local'`, `'plan'`, `'credits'` or `'off'`.
   - `kind` *(string)* Wire format: `'openai'` (`/chat/completions`), `'chatgpt'` (`/responses`) or `'none'`.

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- New dashboard. The first visit opens a three-step setup (**Choose AI**, **Connect GitHub**, **Convert**); after
+  that the screen has **Overview**, **Activity** and **Settings** tabs. Overview shows the sync status with **Sync
+  now**, numbers from the last run, recent activity, connections and the Claude Code commands. Runs show each step
+  live, with a **Stop** button. GitHub, OpenAI, Claude and OpenRouter logos throughout; no web fonts are loaded.
+- **Claude plan** is now a choice under **AI model**: it converts with the default layout, turns on the agent kit
+  and shows the commands to finish the site in Claude Code.
+- **Settings → Plugin data**: **Clear data** removes the AI cache, run history and stored zips; **Run the setup
+  again** brings back the setup.
 - New logo: the teal WA glyph, in the dashboard, the admin menu, the plugin icons and the banner.
 - **Local model** provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio,
   llama.cpp, vLLM) through any OpenAI-compatible **Server URL**.

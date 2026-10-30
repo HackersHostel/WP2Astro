@@ -13,7 +13,7 @@ and links to **Buy credits** from the dashboard.
 
 ## Connect
 
-1. Go to **WP2Astro** and, in the **AI model** card, select **OpenRouter**.
+1. Go to **WP2Astro** and, in **Settings → AI model**, select **OpenRouter**.
 2. Click **Connect OpenRouter**. You go to openrouter.ai.
 3. Log in or create an account, and approve the request.
 4. OpenRouter sends you back to WordPress, which shows "OpenRouter is connected. Pick a model and save."
@@ -39,7 +39,7 @@ use **Test** and check the result.
 
 ## Check your balance and buy credits
 
-When OpenRouter is connected, the card shows your balance, for example "✓ OpenRouter connected · $4.20 in credits".
+When OpenRouter is connected, **Settings → AI model** and **Connections** on the **Overview** tab show your balance, for example "$4.20 in credits".
 A balance under $0.50 is shown in red.
 
 1. Click **Buy credits ↗**. OpenRouter's credits page opens in a new tab.
@@ -59,7 +59,7 @@ If **Connect OpenRouter** doesn't bring you back (for example, the admin is only
 the site runs on plain HTTP), paste a key instead:
 
 1. On openrouter.ai, go to **Settings → Keys** and create a key.
-2. In the **AI model** card, paste it into **API key** and click **Save settings**.
+2. In **Settings → AI model**, paste it into **API key** and click **Save settings**.
 
 ## Disconnect
 
