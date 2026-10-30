@@ -114,8 +114,9 @@ finished**: click **Start again**. The old run stops with "Stopped: a newer run 
 **What you see:** **Test storage** says "Upload failed", or `CONVERSION_REPORT.md` lists files under **Media not
 copied** with "upload failed" and the provider's message, such as `SignatureDoesNotMatch` or `HTTP 401`.
 
-**Why:** the endpoint, bucket, region or key is wrong, or the key may not write to the bucket. Files that fail stay
-linked from WordPress, so the page still shows them.
+**Why:** the endpoint, bucket, region or key is wrong, or the key may not write to the bucket. A message such as
+"Operation timed out" means the **Endpoint** didn't answer: each upload waits about 2 seconds per MB of the file
+(at least 20 seconds, at most 2 minutes). Files that fail stay linked from WordPress, so the page still shows them.
 
 **What to do:** check the fields in **Settings → Media** against [Choose where media goes](media.md#upload-to-storage),
 click **Test storage**, then sync again. If the test uploads but can't read the file back, check the **Public URL** and
@@ -127,6 +128,20 @@ that the bucket or zone allows public reads.
 
 **What to do:** turn on Git LFS support in your host's build settings, or pick another option in
 **Settings → Media**. See [Choose where media goes](media.md#copy-into-the-repo-with-git-lfs).
+
+## The menu doesn't open on small screens
+
+**Why:** WP2Astro copies the scripts your theme loads on the homepage, so a theme that loads its menu script only on
+other pages, or from a plugin, has no menu script on the Astro site. An AI layout can also use markup the theme's
+script doesn't recognize. The default layout adds a **Menu** button that works with or without the theme's script.
+
+**What to do:**
+
+1. Check that the menu works on your WordPress homepage on a phone; WP2Astro copies what that page loads.
+2. Click **Sync now** to copy the theme's scripts again.
+3. If an AI layout still has a broken menu, run `/wp2astro-polish-layout` in Claude Code, or pick **No AI** in
+   **Settings → AI model** and click **Sync now** to use the default layout. See
+   [Finish the site with Claude Code](claude-code.md).
 
 ## GitHub didn't accept the token
 
