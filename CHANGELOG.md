@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Fixed: an AI layout that left an HTML element unclosed, or started with an empty `---` block, passed the checks
   and then broke `npm run build`. Element tags are now counted (a mismatch is sent back to the model for its retry),
