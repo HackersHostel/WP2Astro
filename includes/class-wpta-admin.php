@@ -81,7 +81,7 @@ class WPTA_Admin {
 	}
 
 	public static function menu(): void {
-		$icon = 'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="6 6 52 52"><path fill="black" fill-opacity=".55" d="M24.5 51h9.5L45.5 13H36ZM36.5 13H46l10.5 38H47Z"/><path fill="black" d="M7.5 13h6.4l8 38h-6.4ZM15.5 51h6.4l8-38h-6.4ZM23.5 13h6.4l8 38h-6.4ZM31.5 51h6.4l8-38h-6.4ZM40.5 35h9v6h-9Z"/></svg>' );
+		$icon = 'data:image/svg+xml;base64,' . base64_encode( '<svg xmlns="http://www.w3.org/2000/svg" viewBox="7 7 50 50"><path fill="black" fill-rule="evenodd" d="M32.34 47.38 L39.44 47.38 L38.46 43.51 L39.50 39.38 L45.88 39.38 L47.91 47.38 L55.00 47.38 L47.22 16.62 L40.13 16.62 L41.11 20.49 L36.87 37.23 L31.66 16.62 L24.56 16.62 L25.54 20.49 L21.31 37.23 L16.09 16.62 L9.00 16.62 L16.78 47.38 L23.87 47.38 L22.89 43.51 L27.13 26.77ZM42.69 26.77 L45.11 36.31 L40.28 36.31Z"/></svg>' );
 		$name = WPTA_Settings::brand()['name'];
 		$hook = add_menu_page( $name, $name, 'manage_options', WPTA_Settings::SLUG, array( __CLASS__, 'render' ), $icon, 81 );
 		add_action( 'load-' . $hook, array( __CLASS__, 'help' ) );

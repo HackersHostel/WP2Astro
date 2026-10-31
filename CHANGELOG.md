@@ -1,7 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- Passes the WordPress.org upload check (Plugin Check): templates and prompts no longer use heredocs, job folders and
+  cache files go through WordPress's file functions, and its false alarms are explained in the code.
+
 ## 0.3.0
 
+- Fixed: an AI layout that left an HTML element unclosed, or started with an empty `---` block, passed the checks
+  and then broke `npm run build`. Element tags are now counted (a mismatch is sent back to the model for its retry),
+  an empty leading block is merged into the frontmatter, and cached layouts are checked again before reuse.
+- Docs: Ollama's context size and timeouts for running a local model without a GPU.
 - New dashboard. The first visit opens a three-step setup (**Choose AI**, **Connect GitHub**, **Convert**); after
   that the screen has **Overview**, **Activity** and **Settings** tabs. Overview shows the sync status with **Sync
   now**, numbers from the last run, recent activity, connections and the Claude Code commands. Runs show each step
@@ -33,9 +42,19 @@
   meaning after conversion. It is now escaped.
 - Fixed (#12): two runs started at the same moment could both run. The run lock is now taken atomically, a run that
   loses its lock stops, and a job is only stepped by one request at a time.
+- Fixed: with auto-sync or `--cached`, renaming a parent page left its child pages at their old URLs. A post is now
+  rendered again when its permalink changes.
+- Fixed: on permalink structures without a trailing slash (`/%postname%`), month archives weren't found at their
+  WordPress URLs and archive pagination could build URLs like `/2024/01page/2/`. Archive pages now always end in a
+  slash, like every other generated page.
+- Fixed: the default layout's small-screen menu toggle didn't open when the theme loaded a script that didn't handle
+  the menu. It now opens the menu unless the theme's own script already did on that click.
+- Media uploads to storage time out in proportion to the file's size (about 2 seconds per MB, 20 seconds to 2 minutes),
+  so an endpoint that doesn't answer fails quickly, and the media step stops on time even when uploads fail.
 - CI (#23, #24): builds a fixture Astro site with every URL case and checks `dist/` and `npm start`, and converts a
   real WordPress site against the mocks (AI, GitHub with LFS, S3 storage) with a visual comparison of the result.
-- New logo: the teal WA glyph, in the dashboard, the admin menu, the plugin icons and the banner.
+- New logo: the WA mark, in teal (teal-dark on dark backgrounds), in the dashboard, the admin menu, the plugin icons
+  and the banner.
 - **Local model** provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio,
   llama.cpp, vLLM) through any OpenAI-compatible **Server URL**.
 - OpenRouter's default model is now the open `google/gemma-4-31b-it` (was `anthropic/claude-haiku-5.5`).
@@ -46,17 +65,17 @@
   instead of risking deleting files.
 - AI cache entries unused for 30 days are removed.
 - Settings are read and decrypted once per request.
-- Docs: [Run a local model](docs/local-models.md), and deploying to Render.
+- Docs: [Run a local model](docs/local-models.md), [Choose where media goes](docs/media.md), and deploying to
+  Render. The README, `readme.txt`, Getting started, Sync and Troubleshooting pages cover the media options, the new
+  archives, theme scripts and **Custom fields** (#29).
 
-- Help tabs on the WP2Astro screen (Overview, AI model, GitHub, Sync, Troubleshooting) and a Help sidebar with links
-  to the documentation, Q&A, issues and the changelog. Field descriptions link to the matching guide.
+- Help tabs on the WP2Astro screen (Overview, AI model, GitHub, Media, Sync, Troubleshooting) and a Help sidebar with
+  links to the documentation, Q&A, issues and the changelog. Field descriptions link to the matching guide.
 - `readme.txt` in WordPress.org format, and plugin directory icons and banners in `.wordpress-org/`. **View details**
   on the Plugins screen now shows the readme's description, installation steps and FAQ.
 - Documentation rewritten as task-based guides for site owners, with developer pages for hooks, WP-CLI, white-label,
   the GitHub OAuth app and releasing. Every filter has a docblock with `@since`.
 - `bin/build-zip.sh --wporg` builds the WordPress.org version, without the GitHub updater and the `Update URI` header.
-- Passes the WordPress.org upload check (Plugin Check): templates and prompts no longer use heredocs, job folders and
-  cache files go through WordPress's file functions, and its false alarms are explained in the code.
 - New `WP2ASTRO_BRAND_FORUM` constant and `forum` brand key for the Help sidebar's "Ask a question" link.
 
 ## 0.2.0

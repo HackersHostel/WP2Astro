@@ -18,11 +18,11 @@ Everything happens in wp-admin. You don't need Node.js, a terminal or an applica
 
 = Same URLs =
 
-Every post, page, custom post type entry, category and tag keeps its permalink. Old links keep working too: changed slugs, `?p=123`, `?page_id=7`, `?s=search` and `/feed/` redirect to the right place.
+Every post, page, custom post type entry, category and tag keeps its permalink, and so do paginated archives and year, month and author archives. Old links keep working too: changed slugs, `?p=123`, `?page_id=7`, `?s=search` and `/feed/` redirect to the right place.
 
 = Same look =
 
-Your theme's CSS, images and fonts are copied. An AI model rebuilds the header, menu and footer as an Astro layout from your rendered homepage. Without AI you get a clean default layout.
+Your theme's CSS, images, fonts and scripts are copied. An AI model rebuilds the header, menu and footer as an Astro layout from your rendered homepage. Without AI you get a clean default layout.
 
 = Smart sync =
 
@@ -37,13 +37,15 @@ Each sync pushes only the files that changed and removes posts you deleted or un
 * **Feeds and sitemap.** An RSS feed, `sitemap.xml` and `robots.txt`; old feed and sitemap URLs redirect.
 * **Search.** Static full-text search with Pagefind.
 * **Custom post types.** Public custom post types get their own folders and archives.
+* **Media where you want it.** Copy media into the repository, store it with Git LFS, leave it on WordPress, or upload it to Amazon S3, Cloudflare R2 or Bunny Storage, with a **Test storage** button.
+* **Custom fields, if you want them.** Turn on **Custom fields** to write public post meta and ACF fields to each entry's frontmatter. Off by default.
 * **Light on your server.** Work runs in short steps, so it fits shared hosting. AI results are cached, so syncs don't spend credits again.
 * **Private by design.** Keys and tokens are encrypted in your database. Nothing is sent anywhere until you connect a service.
 * **WP-CLI.** `wp wp2astro convert` and `wp wp2astro status`.
 
 = Documentation =
 
-Click **Help** on the WP2Astro screen for a short guide, or read the [full documentation](https://github.com/HackersHostel/wp2astro/tree/main/docs): getting started, the AI options, GitHub, sync, deploying and troubleshooting.
+Click **Help** on the WP2Astro screen for a short guide, or read the [full documentation](https://github.com/HackersHostel/wp2astro/tree/main/docs): getting started, the AI options, GitHub, sync, media, deploying and troubleshooting.
 
 WP2Astro is free and open source, made by [Hackers Hostel](https://hackershostel.com). Development happens on [GitHub](https://github.com/HackersHostel/wp2astro).
 
@@ -73,7 +75,7 @@ Not inside the plugin: Anthropic only allows Claude Pro and Max plans in Claude'
 
 = Does my content leave my server? =
 
-Only when you connect a service. With **No AI** and no GitHub connection, nothing leaves your server: you download a zip. With GitHub connected, the generated site (published posts, pages, the media they use and your theme's assets) is pushed to your repository. With an AI model, the trimmed homepage HTML, the menu and posts that contain dead shortcodes are sent to that model. With **Local model**, they only go to your own model server. Drafts, private posts, comments and user data are never read. See the External services section.
+Only when you connect a service. With **No AI** and no GitHub connection, nothing leaves your server: you download a zip. With GitHub connected, the generated site (published posts, pages, the media they use and your theme's assets) is pushed to your repository. With an AI model, the trimmed homepage HTML, the menu and posts that contain dead shortcodes are sent to that model. With **Local model**, they only go to your own model server. If you upload media to storage, the media files go to the storage service you set up. Drafts, private posts, comments and user data are never read. See the External services section.
 
 = What does OpenRouter cost? =
 
@@ -89,7 +91,7 @@ They are kept. A sync never overwrites a file that changed in the repository sin
 
 = Do comments, forms or WooCommerce carry over? =
 
-No. A static site has no server-side code, so comments, forms, WooCommerce and other features that need a server aren't converted, and neither are sidebar widgets. Posts, pages, custom post types, categories, tags, menus, media and SEO metadata are.
+No. A static site has no server-side code, so comments, forms, WooCommerce and other features that need a server aren't converted, and neither are sidebar widgets. Posts, pages, custom post types, categories, tags, menus, media and SEO metadata are, and custom fields (post meta and ACF) when you turn on **Custom fields**.
 
 = Do I need GitHub? =
 
@@ -120,19 +122,17 @@ Ask in [Q&A on GitHub](https://github.com/HackersHostel/wp2astro/discussions/cat
 
 = 0.3.0 =
 
-First release on WordPress.org.
-
-* New dashboard: a three-step setup, then **Overview**, **Activity** and **Settings** tabs. Runs show each step live, with a **Stop** button.
-* **Local model**: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio, llama.cpp, vLLM).
-* **Claude plan**: converts with the default layout and shows the commands to finish the site in Claude Code.
-* **Settings → Media**: copy media into the repo, store it with Git LFS, leave it on WordPress, or upload it to Amazon S3, Cloudflare R2, an S3-compatible service or Bunny Storage.
-* Year, month and author archives at their WordPress URLs; category, tag and custom post type archives are paginated.
+* New dashboard: a three-step setup on the first visit (Choose AI, Connect GitHub, Convert), then Overview, Activity and Settings tabs. Runs show each step live, with a Stop button.
+* Local model provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio, llama.cpp, vLLM). OpenRouter's default model is now the open Gemma 4 31B.
+* Claude plan is a choice under AI model: convert, then finish the site in Claude Code with the agent kit.
+* Media: copy it into the repository, store it with Git LFS, leave it on WordPress, or upload it to S3, Cloudflare R2 or Bunny Storage.
+* Year, month and author archives, and paginated category, tag and custom post type archives, at their WordPress URLs.
 * The theme's JavaScript is copied, so menu toggles keep working.
 * Optional custom fields (public post meta and ACF) in each entry's frontmatter.
-* `netlify.toml` with the build settings and redirects for old `?p=` links.
-* Faster syncs on large sites: auto-sync renders only changed posts, and commits send only changed files.
-* OpenRouter's default model is now the open Gemma 4.
-* Fixed: `.html` permalinks, text that looked like Markdown, two runs starting at once, and non-ASCII slugs.
+* Netlify settings with 301s for ?p=, ?page_id= and ?s= links.
+* Faster syncs on large sites: only changed posts are rendered and only changed files are committed.
+* Fixed: non-ASCII slugs, .html permalinks, Markdown-looking text, echoing shortcodes, AI layouts that broke the build, and two runs starting at once.
+* New logo.
 
 = 0.2.0 =
 
@@ -160,7 +160,7 @@ First Hackers Hostel release, renamed from "WP to Astro" to WP2Astro.
 
 = 0.3.0 =
 
-A new dashboard, local models, media in Git LFS or S3, R2 and Bunny storage, date and author archives, and faster syncs on large sites.
+New dashboard with a guided setup, open models on your own server (Local model), media options, more archives and many fixes.
 
 = 0.2.0 =
 

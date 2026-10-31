@@ -211,6 +211,16 @@ check( 'finalize: keeps charset', str_contains( $final, '<meta charset="utf-8" /
 check( 'finalize: idempotent', WPTA_AI::finalize_layout( $final ), $final );
 check( 'finalize: still valid', WPTA_AI::validate_layout( $final ), '' );
 
+// Seen from Gemma 4 E4B: an empty block before the frontmatter, and one <div> left open. Both broke `npm run build`.
+$empty_first = "---\n---\n" . substr( $ai_layout, 4 );
+check( 'normalize: empty first block merged', WPTA_AI::normalize_layout( $empty_first ), $ai_layout );
+check( 'normalize: valid layout unchanged', WPTA_AI::normalize_layout( $ai_layout ), $ai_layout );
+check( 'normalize: then valid', WPTA_AI::validate_layout( WPTA_AI::normalize_layout( $empty_first ) ), '' );
+check( 'normalize: finalized once', substr_count( WPTA_AI::finalize_layout( WPTA_AI::normalize_layout( $empty_first ) ), "---\n" ), 2 );
+check( 'reject unclosed div', WPTA_AI::validate_layout( str_replace( '<slot />', '<div id="main"><slot />', $ai_layout ) ), 'unbalanced <div> tags (1 opened, 0 closed).' );
+check( 'self-closing div is fine', WPTA_AI::validate_layout( str_replace( '<slot />', '<div class="x" /><slot />', $ai_layout ) ), '' );
+check( 'aside is not an <a>', WPTA_AI::validate_layout( str_replace( '<slot />', '<aside>side</aside><slot />', $ai_layout ) ), '' );
+
 $headless = "---\nimport site from '../site.json';\n---\n<html lang=\"en\"><body>{site.stylesheets}{site.menu}<slot /></body></html>";
 check( 'finalize: adds <head> when missing', str_contains( WPTA_AI::finalize_layout( $headless ), "<html lang=\"en\">\n<head>\n  <SeoHead" ), true );
 

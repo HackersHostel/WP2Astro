@@ -20,10 +20,11 @@ publish. You keep writing in WordPress; your visitors get a static site. Free an
 
 - **Installs like any plugin.** No Node.js, terminal or application passwords on your side: upload the zip, open
   **WP2Astro**, click **Convert to Astro**.
-- **Same URLs.** Every post, page, custom post type entry, category and tag keeps its permalink. Old links still work:
-  changed slugs, `?p=123`, `?page_id=7`, `?s=search` and `/feed/` redirect to the right place.
-- **Same look.** The theme's CSS, images and fonts are copied, and an AI model rebuilds the header, menu and footer as
-  an Astro layout from the rendered homepage.
+- **Same URLs.** Every post, page, custom post type entry, category and tag keeps its permalink, and so do paginated
+  archives and year, month and author archives. Old links still work: changed slugs, `?p=123`, `?page_id=7`,
+  `?s=search` and `/feed/` redirect to the right place.
+- **Same look.** The theme's CSS, images, fonts and scripts are copied, and an AI model rebuilds the header, menu and
+  footer as an Astro layout from the rendered homepage.
 - **Open models, the AI you already pay for — or none.** A **local model** (Gemma, Llama or Qwen on Ollama, LM Studio,
   llama.cpp or vLLM), your **ChatGPT plan** (Sign in with ChatGPT, no API key), or **OpenRouter** with one-click
   connect, an in-plugin credit balance and **Buy credits** (open Gemma by default; Claude, GPT and free models).
@@ -35,6 +36,9 @@ publish. You keep writing in WordPress; your visitors get a static site. Free an
 - **SEO kept.** Titles and descriptions from Yoast SEO, Rank Math or All in One SEO; canonical and Open Graph tags;
   RSS feed, sitemap and robots.txt.
 - **Search.** Static full-text search with Pagefind.
+- **Media where you want it.** In the repo, with Git LFS, left on WordPress, or uploaded to Amazon S3, Cloudflare R2
+  or Bunny Storage.
+- **Custom fields, if you want them.** Public post meta and ACF fields in frontmatter, off by default.
 - **Finish it with your Claude plan.** Each repo ships an agent kit (`AGENTS.md`, `CLAUDE.md`, Claude Code skills), so
   Claude Code or Codex can polish what the conversion couldn't.
 - **WordPress-native.** Help tabs on the dashboard, WP-CLI commands, encrypted secrets, and short job steps that fit
@@ -61,6 +65,7 @@ deterministic fallback, so a bad answer never breaks a conversion.
 - Optional: a local model server (such as Ollama), a ChatGPT Plus or Pro plan, or an OpenRouter account, for the AI
   steps.
 - Optional: a GitHub account, for a repository and sync instead of a zip.
+- Optional: an Amazon S3, Cloudflare R2 or Bunny Storage account, to serve media from storage.
 - To build or serve the generated site: Node.js 22.23.4 or later (on your computer or your host).
 
 ## Install
@@ -78,7 +83,8 @@ Updates arrive in **Dashboard → Updates** like any other plugin, from this rep
    click **Sign in with ChatGPT**, select **OpenRouter** and click **Connect OpenRouter**, or keep **No AI**.
 2. **GitHub** (optional) — click **Connect GitHub** and enter the code on github.com. Without GitHub you download a
    zip.
-3. **What to build** — SEO, feeds, search, custom post types, agent kit, auto-sync.
+3. **What to build** — SEO, feeds, search, custom post types, agent kit, custom fields, auto-sync. Media goes into
+   the repo unless you pick another option under **Settings → Media**.
 4. Click **Convert to Astro**. Later runs become **Sync now**.
 
 The [Getting started](docs/getting-started.md) guide walks through every step. In WordPress, click **Help** on the
@@ -100,9 +106,11 @@ src/site.json                     title, menu, terms, archives, feature flags
 src/layouts/BaseLayout.astro      the theme shell (AI-built or default)
 src/components/SeoHead.astro      title, description, canonical, Open Graph
 src/pages/                        permalinks, archives, pagination, feed.xml, sitemap.xml, robots.txt, search
-public/theme/                     the old theme's CSS, images, fonts
-public/wp-content/uploads/        referenced media at their original paths
+public/theme/                     the old theme's CSS, images, fonts and scripts
+public/wp-content/uploads/        referenced media at their original paths (unless it stays on WordPress or storage)
+.gitattributes                    Git LFS rules, when media is stored with Git LFS
 redirects.json, public/_redirects old WordPress URLs → new ones
+netlify.toml                      Netlify build settings and redirects for ?p=, ?page_id=, ?s=
 server.mjs                        zero-dependency server for `npm start` (with real 301s)
 AGENTS.md, CLAUDE.md, .claude/    agent kit
 CONVERSION_REPORT.md              anything that needs a look
@@ -113,7 +121,8 @@ CONVERSION_REPORT.md              anything that needs a look
 - **FlyWP + DigitalOcean:** add a Node.js site from the repo; build `npm install && npm run build`, start `npm start`.
   FlyWP's free plan covers one server and one site; the DigitalOcean droplet is paid.
 - **Render:** add a Node.js web service from the repo with the same build and start commands.
-- **Any static host:** build `npm run build`, publish `dist/`. Netlify and Cloudflare Pages read `public/_redirects`.
+- **Any static host:** build `npm run build`, publish `dist/`. Netlify and Cloudflare Pages read `public/_redirects`;
+  Netlify also reads `netlify.toml`, which redirects `?p=`, `?page_id=` and `?s=` links.
 
 See [Deploy the site](docs/deploy.md) for what each option redirects.
 
@@ -129,6 +138,7 @@ See [Deploy the site](docs/deploy.md) for what each option redirects.
 | [Finish the site with Claude Code](docs/claude-code.md) | [Contributing](CONTRIBUTING.md) |
 | [Connect GitHub](docs/github.md) | [Local test setup](dev/README.md) |
 | [Keep the site in sync](docs/sync.md) | |
+| [Choose where media goes](docs/media.md) | |
 | [Deploy the site](docs/deploy.md) | |
 | [Troubleshooting](docs/troubleshooting.md) | |
 | [Privacy and external services](docs/privacy.md) | |
@@ -161,7 +171,7 @@ WordPress. Both are open source; pick what fits.
 | Shortcodes | Rendered by WordPress itself; dead ones cleaned by AI | Rule-based handling |
 | Old URLs, `?p=`, changed slugs | Yes | Redirect files for several hosts |
 | SEO plugins, feeds, sitemap, search | Yes | Yes (plus JSON Feed) |
-| Custom post types | Yes | Yes (plus ACF fields) |
+| Custom post types | Yes (plus post meta and ACF fields, opt-in) | Yes (plus ACF fields) |
 | Sync | Changed files only, keeps edits made in the repo, auto-sync on publish | Incremental, scheduled or webhooks |
 | Credentials | Encrypted in the database | Plain text config file |
 | Scale | One site per install | Built for networks of many sites |

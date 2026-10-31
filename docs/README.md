@@ -22,7 +22,7 @@ Inside WordPress, click **Help** next to the tabs at the top of the **WP2Astro**
 
 ## For developers
 
-- [Hooks](developers/hooks.md) — filters to change providers, post types, timeouts, GitHub and updates
+- [Hooks](developers/hooks.md) — filters to change providers, post types, custom fields, media limits, timeouts, GitHub and updates
 - [WP-CLI commands](developers/wp-cli.md) — `wp wp2astro convert` and `wp wp2astro status`
 - [White-label](developers/white-label.md) — ship WP2Astro under your own brand
 - [GitHub OAuth app](developers/github-oauth-app.md) — register the app behind **Connect GitHub**
