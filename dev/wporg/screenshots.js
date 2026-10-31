@@ -9,7 +9,7 @@ const path = require('path');
 
 const WP = 'http://localhost:8899';
 const ASTRO = 'http://localhost:4567';
-const POST = '/2009/10/the-lighthouse-keeper-who-never-left/';
+const PAGE = '/about/'; // No featured image or post navigation, so both sides show the theme as it is.
 const arg = process.argv.find((a) => a.startsWith('--out='));
 const out = path.resolve(arg ? arg.slice(6) : path.join(__dirname, '..', '..', '.wordpress-org'));
 const shot = (n) => path.join(out, `screenshot-${n}.png`);
@@ -26,7 +26,9 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   fs.mkdirSync(out, { recursive: true });
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+  // A fresh load every time: going from #step-3 to #overview on the same URL would only change the hash.
   const dashboard = async (hash = '') => {
+    await page.goto('about:blank');
     await page.goto(`${WP}/wp-admin/admin.php?page=wp2astro${hash}`, { waitUntil: 'networkidle' });
   };
 
@@ -34,6 +36,11 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   await page.fill('#user_login', 'admin');
   await page.fill('#user_pass', 'admin');
   await Promise.all([page.waitForNavigation(), page.click('#wp-submit')]);
+  // The OpenRouter balance, faked for every page: the key is a test key, so nothing should reach openrouter.ai.
+  // A different pattern from fakeAjax's, so unroute() there leaves this one in place.
+  await page.route('**/admin-ajax.php', (route) => ((route.request().postData() || '').includes('action=wpta_or_balance')
+    ? route.fulfill({ contentType: 'application/json', body: JSON.stringify({ success: true, data: { buy_url: 'https://openrouter.ai/settings/credits', balance: 4.82 } }) })
+    : route.fallback()));
 
   // 1. The first-run setup. Show it again if this site has converted before.
   await dashboard();
@@ -44,6 +51,9 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   if (!(await key.evaluate((d) => d.open))) await key.locator('summary').click();
   await page.fill('#wpta-key-openrouter', 'sk-or-test');
   await page.fill('#wpta-model-openrouter', 'google/gemma-4-31b-it');
+  await sleep(500); // OpenRouter balance.
+  // Filling the fields scrolls; a full-page capture of a scrolled page draws the fixed admin bar lower down.
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ path: shot(1), fullPage: true });
 
   // Finish the setup: GitHub through the mock, then the first conversion.
@@ -96,16 +106,16 @@ const fakeAjax = (page, action, reply) => page.route(`${WP}/wp-admin/admin-ajax.
   await sleep(300);
   await page.screenshot({ path: shot(5) });
 
-  // 6. Before and after: the same post on WordPress and on the Astro build.
+  // 6. Before and after: the same page on WordPress and on the Astro build, wide enough for Twenty Ten (980 px).
   const grab = async (url) => {
-    const p = await browser.newPage({ viewport: { width: 900, height: 760 } });
+    const p = await browser.newPage({ viewport: { width: 1000, height: 760 } });
     await p.goto(url, { waitUntil: 'networkidle' });
     const png = (await p.screenshot()).toString('base64');
     await p.close();
     return png;
   };
-  const [before, after] = [await grab(WP + POST), await grab(ASTRO + POST)];
-  const board = await browser.newPage({ viewport: { width: 1840, height: 860 } });
+  const [before, after] = [await grab(WP + PAGE), await grab(ASTRO + PAGE)];
+  const board = await browser.newPage({ viewport: { width: 1840, height: 600 } }); // fullPage grows it to the content.
   await board.setContent(`<!doctype html><style>
     body{margin:0;padding:24px;background:#17191e;font:600 22px Inter,system-ui,sans-serif;color:#fff;display:flex;gap:40px}
     figure{margin:0} figcaption{margin:0 0 12px} img{display:block;width:880px;border-radius:8px;box-shadow:0 8px 30px #0008}
