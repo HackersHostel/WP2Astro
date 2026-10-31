@@ -42,6 +42,8 @@ GitHub and keeps it in sync. `README.md`, `readme.txt` (WordPress.org format) an
 - `includes/class-wpta-updater.php` — updates from GitHub releases, plugin details from `readme.txt` (not in the
   WordPress.org build)
 - `readme.txt` — WordPress.org readme; `.wordpress-org/` — plugin directory icons, banners, screenshots (not shipped)
+- `brand/` — the WA logo source: every ink as SVG and PNG, and `export_inks.py` to regenerate them (not shipped).
+  `assets/logo.svg` is `glyph-teal`; dark backgrounds (the banner) use `glyph-teal-dark`
 - `docs/` — task-based user guides; `docs/developers/` — hooks, WP-CLI, white-label, OAuth app, releasing
 - `tests/run.php` — unit tests for the pure parts and readme checks; `dev/` — mocks + driver, the CI fixture
   (`fixture.php`, `check-dist.mjs`), the WordPress CI job (`ci-wordpress.sh`), `compare.mjs`, `dev/wporg/` asset and
