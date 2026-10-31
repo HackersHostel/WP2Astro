@@ -233,7 +233,7 @@ class WPTA_Exporter {
 		// Shortcodes that echo instead of returning would corrupt the AJAX step's JSON. WordPress prints that output
 		// before the content, so keep it there.
 		ob_start();
-		$html = apply_filters( 'the_content', $post->post_content );
+		$html = apply_filters( 'the_content', $post->post_content ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- a core hook.
 		$html = ob_get_clean() . $html;
 		wp_reset_postdata();
 
@@ -740,7 +740,7 @@ class WPTA_Exporter {
 	/** Rendered homepage HTML via loopback request ('' if the server can't reach itself). */
 	public static function fetch_home(): string {
 		// Same rule core uses for loopback requests (cron, site health).
-		$res = wp_remote_get( home_url( '/' ), array( 'timeout' => 20, 'sslverify' => apply_filters( 'https_local_ssl_verify', false ), 'redirection' => 3 ) );
+		$res = wp_remote_get( home_url( '/' ), array( 'timeout' => 20, 'sslverify' => apply_filters( 'https_local_ssl_verify', false ), 'redirection' => 3 ) ); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- a core hook.
 		if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
 			return '';
 		}

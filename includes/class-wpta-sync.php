@@ -185,7 +185,7 @@ class WPTA_Sync {
 	public static function acquire( string $id, bool $force = false ): bool {
 		global $wpdb;
 		for ( $try = 0; $try < 2; $try++ ) {
-			$won = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", self::LOCK, maybe_serialize( array( 'id' => $id, 'time' => time() ) ) ) );
+			$won = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, 'off')", self::LOCK, maybe_serialize( array( 'id' => $id, 'time' => time() ) ) ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- the run lock needs insert-if-absent and compare-and-delete, which the options API lacks; never cached.
 			self::forget();
 			if ( 1 === (int) $won ) {
 				return true;
@@ -199,7 +199,7 @@ class WPTA_Sync {
 				return false;
 			}
 			// Stale, unreadable or forced: delete exactly the row we read, so a lock someone took meanwhile survives.
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK, (string) $raw ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK, (string) $raw ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- the run lock needs insert-if-absent and compare-and-delete, which the options API lacks; never cached.
 			self::forget();
 		}
 		return false;
@@ -218,7 +218,7 @@ class WPTA_Sync {
 		if ( null === $raw || ! self::holds( $id ) ) {
 			return;
 		}
-		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", maybe_serialize( array( 'id' => $id, 'time' => time() ) ), self::LOCK, $raw ) );
+		$wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", maybe_serialize( array( 'id' => $id, 'time' => time() ) ), self::LOCK, $raw ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- the run lock needs insert-if-absent and compare-and-delete, which the options API lacks; never cached.
 		self::forget();
 	}
 
@@ -226,7 +226,7 @@ class WPTA_Sync {
 		global $wpdb;
 		$raw = self::read_raw();
 		if ( null !== $raw && self::holds( $id ) ) {
-			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK, $raw ) );
+			$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::LOCK, $raw ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- the run lock needs insert-if-absent and compare-and-delete, which the options API lacks; never cached.
 			self::forget();
 		}
 	}
@@ -234,7 +234,7 @@ class WPTA_Sync {
 	/** The lock row as stored, read past the object cache. */
 	private static function read_raw(): ?string {
 		global $wpdb;
-		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK ) );
+		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", self::LOCK ) ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery -- the run lock needs insert-if-absent and compare-and-delete, which the options API lacks; never cached.
 		return null === $raw ? null : (string) $raw;
 	}
 

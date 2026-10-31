@@ -5,18 +5,13 @@
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
-foreach ( array( 'wpta_settings', 'wpta_chatgpt', 'wpta_sync_manifest', 'wpta_runs', 'wpta_running', 'wpta_last_layout_log', 'wpta_changed', 'wpta_setup_done', 'wpta_cdn_files' ) as $option ) {
-	delete_option( $option );
+foreach ( array( 'wpta_settings', 'wpta_chatgpt', 'wpta_sync_manifest', 'wpta_runs', 'wpta_running', 'wpta_last_layout_log', 'wpta_changed', 'wpta_setup_done', 'wpta_cdn_files' ) as $wpta_option ) {
+	delete_option( $wpta_option );
 }
 delete_site_transient( 'wpta_release' );
 wp_clear_scheduled_hook( 'wpta_auto_sync' );
 wp_clear_scheduled_hook( 'wpta_run_job' );
 
-$dir = wp_get_upload_dir()['basedir'] . '/wp2astro';
-if ( is_dir( $dir ) ) {
-	$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
-	foreach ( $it as $f ) {
-		$f->isDir() ? rmdir( $f->getPathname() ) : unlink( $f->getPathname() );
-	}
-	rmdir( $dir );
-}
+require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+( new WP_Filesystem_Direct( null ) )->rmdir( wp_get_upload_dir()['basedir'] . '/wp2astro', true );

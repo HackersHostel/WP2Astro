@@ -356,6 +356,7 @@ TS;
 
 	/** Used when AI is off or its layout fails validation. Uses WordPress-style class names so the copied theme CSS still applies. */
 	public static function default_layout(): string {
+		// phpcs:disable WordPress.WP.EnqueuedResources -- an Astro template written into the generated site, not output by WordPress.
 		return <<<'ASTRO'
 ---
 import site from '../site.json';
@@ -429,6 +430,7 @@ interface Props {
 </html>
 
 ASTRO;
+		// phpcs:enable WordPress.WP.EnqueuedResources
 	}
 
 	private static function post_layout(): string {
@@ -628,6 +630,7 @@ ASTRO;
 
 	/** Title, description, canonical, Open Graph, robots and feed links for every page. */
 	private static function seo_head(): string {
+		// phpcs:disable WordPress.WP.EnqueuedResources -- an Astro template written into the generated site, not output by WordPress.
 		return <<<'ASTRO'
 ---
 import site from '../site.json';
@@ -665,6 +668,7 @@ const imageUrl = image ? new URL(image, base).href : undefined;
 {(site.scripts || []).map((src) => <script is:inline src={src} defer></script>)}
 
 ASTRO;
+		// phpcs:enable WordPress.WP.EnqueuedResources
 	}
 
 	/** RSS 2.0 at /feed.xml (the old /feed/ URL redirects here). No dependencies. */
@@ -754,6 +758,7 @@ TS;
 
 	/** Static full-text search with Pagefind (index built after `astro build`). Old ?s= links land here. */
 	private static function search_page(): string {
+		// phpcs:disable WordPress.WP.EnqueuedResources -- an Astro template written into the generated site, not output by WordPress.
 		return <<<'ASTRO'
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
@@ -781,16 +786,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 </BaseLayout>
 
 ASTRO;
+		// phpcs:enable WordPress.WP.EnqueuedResources
 	}
 
 	private static function readme( array $site ): string {
 		$title = $site['title'];
 		$url   = $site['url'];
 		$brand = WPTA_Settings::brand();
-		$md    = <<<MD
-# {$title} — Astro
+		$md    = <<<'MD'
+# {{title}} — Astro
 
-Converted from WordPress ({$url}) with [{$brand['name']}]({$brand['url']}). Every post and page keeps its original URL, and old WordPress links (`?p=123`, changed slugs, `/feed/`) redirect to the right place.
+Converted from WordPress ({{url}}) with [{{brand}}]({{brand_url}}). Every post and page keeps its original URL, and old WordPress links (`?p=123`, changed slugs, `/feed/`) redirect to the right place.
 
 ## Develop
 
@@ -818,7 +824,7 @@ See `CONVERSION_REPORT.md` for anything that needs a manual look.
 
 ## Keeping it in sync with WordPress
 
-{$brand['name']} can push updates from WordPress again (manually or automatically after you publish). It only commits files that changed, and **files you edit in this repo are kept**: if you change a file here, later syncs leave it alone. To hand a file back to WordPress, restore it to the last synced version or delete it.
+{{brand}} can push updates from WordPress again (manually or automatically after you publish). It only commits files that changed, and **files you edit in this repo are kept**: if you change a file here, later syncs leave it alone. To hand a file back to WordPress, restore it to the last synced version or delete it.
 
 ## Finish it with an AI agent
 
@@ -842,6 +848,14 @@ Any static host works too (build command `npm run build`, output `dist/`); Netli
 If the site moves to a new domain, change `url` in `src/site.json` so canonical links, the sitemap and the feed use it.
 
 MD;
-		return $md;
+		return strtr(
+			$md,
+			array(
+				'{{title}}'     => $title,
+				'{{url}}'       => $url,
+				'{{brand}}'     => $brand['name'],
+				'{{brand_url}}' => $brand['url'],
+			)
+		);
 	}
 }

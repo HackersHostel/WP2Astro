@@ -43,6 +43,17 @@ class WPTA_Job {
 		return self::root() . '/cache';
 	}
 
+	/** WordPress's direct filesystem class, for removing folders and touching files under root(). */
+	public static function fs(): WP_Filesystem_Direct {
+		static $fs = null;
+		if ( null === $fs ) {
+			require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-base.php';
+			require_once ABSPATH . 'wp-admin/includes/class-wp-filesystem-direct.php';
+			$fs = new WP_Filesystem_Direct( null );
+		}
+		return $fs;
+	}
+
 	private function dir(): string {
 		return self::root() . '/' . $this->s['id'];
 	}
@@ -88,7 +99,7 @@ class WPTA_Job {
 		);
 		$id = strtolower( wp_generate_password( 12, false ) );
 		if ( ! WPTA_Sync::acquire( $id, ! empty( $opts['force'] ) ) ) {
-			throw new RuntimeException( 'Another conversion is running right now (job ' . WPTA_Sync::running() . '). Wait for it to finish.', self::BUSY );
+			throw new RuntimeException( 'Another conversion is running right now (job ' . WPTA_Sync::running() . '). Wait for it to finish.', self::BUSY ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 		}
 		// This run holds the lock, so any run still marked as running died or was taken over.
 		foreach ( WPTA_Sync::runs() as $rid => $r ) {
@@ -128,7 +139,7 @@ class WPTA_Job {
 	public static function ajax_start(): void {
 		self::guard();
 		try {
-			$job = self::create( 'manual', array( 'force' => ! empty( $_POST['force'] ) ) );
+			$job = self::create( 'manual', array( 'force' => ! empty( $_POST['force'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() checked it.
 		} catch ( RuntimeException $e ) {
 			wp_send_json_error( array( 'message' => $e->getMessage(), 'busy' => self::BUSY === $e->getCode() ) );
 		}
@@ -137,7 +148,7 @@ class WPTA_Job {
 
 	public static function ajax_step(): void {
 		self::guard();
-		$id = sanitize_key( wp_unslash( $_POST['job'] ?? '' ) );
+		$id = sanitize_key( wp_unslash( $_POST['job'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() checked it.
 		if ( ! self::valid_id( $id ) ) {
 			wp_send_json_error( array( 'message' => 'Invalid job.' ), 400 );
 		}
@@ -159,7 +170,7 @@ class WPTA_Job {
 	/** Stop a job between steps. Nothing is pushed: commits are only made in the last step. */
 	public static function ajax_stop(): void {
 		self::guard();
-		$job = self::load( sanitize_key( wp_unslash( $_POST['job'] ?? '' ) ) );
+		$job = self::load( sanitize_key( wp_unslash( $_POST['job'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- guard() checked it.
 		if ( ! $job ) {
 			wp_send_json_error( array( 'message' => 'Job not found.' ), 404 );
 		}
@@ -175,7 +186,7 @@ class WPTA_Job {
 		}
 		if ( is_dir( self::root() ) ) {
 			foreach ( glob( self::root() . '/*', GLOB_ONLYDIR ) as $dir ) {
-				self::rrmdir( $dir );
+				self::fs()->rmdir( $dir, true );
 			}
 		}
 		delete_option( WPTA_Sync::RUNS );
@@ -340,7 +351,7 @@ class WPTA_Job {
 			$this->save();
 		} finally {
 			flock( $guard, LOCK_UN );
-			fclose( $guard );
+			fclose( $guard ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- the flock() handle from step_lock().
 		}
 		return true;
 	}
@@ -352,7 +363,7 @@ class WPTA_Job {
 			throw new RuntimeException( 'Could not open the job folder.' );
 		}
 		if ( ! flock( $fh, $wait ? LOCK_EX : LOCK_EX | LOCK_NB ) ) {
-			fclose( $fh );
+			fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- see fopen() above.
 			return false;
 		}
 		return $fh;
@@ -380,7 +391,7 @@ class WPTA_Job {
 			$this->save();
 		} finally {
 			flock( $guard, LOCK_UN );
-			fclose( $guard );
+			fclose( $guard ); // phpcs:ignore WordPress.WP.AlternativeFunctions -- the flock() handle from step_lock().
 		}
 	}
 
@@ -493,7 +504,7 @@ class WPTA_Job {
 		if ( 'cdn' === $this->s['media_mode'] ) {
 			$missing = WPTA_Storage::missing( WPTA_Storage::config() );
 			if ( $missing ) {
-				throw new RuntimeException( $missing . ' Fill it in under Settings → Media, or pick another option there.' );
+				throw new RuntimeException( $missing . ' Fill it in under Settings → Media, or pick another option there.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 			}
 		}
 		$this->s['ctx']   = self::cache_context( $site );
@@ -564,7 +575,7 @@ class WPTA_Job {
 		if ( ! empty( $this->s['opts']['cached'] ) && is_readable( $file ) ) {
 			$hit = json_decode( (string) file_get_contents( $file ), true );
 			if ( is_array( $hit ) && ( $hit['key'] ?? '' ) === $key && isset( $hit['entry']['markdown'], $hit['entry']['path'] ) ) {
-				touch( $file ); // Keeps it out of the 30-day cleanup.
+				self::fs()->touch( $file ); // Keeps it out of the 30-day cleanup.
 				++$this->s['report']['reused'];
 				return $hit['entry'];
 			}
@@ -875,7 +886,7 @@ class WPTA_Job {
 			$brand = WPTA_Settings::brand()['name'];
 			$repo  = $gh->ensure_repo( $settings['repo_name'], (bool) $settings['repo_private'], 'Astro version of ' . $this->s['site']['title'] . ', converted from WordPress with ' . $brand . '.' );
 			if ( is_wp_error( $repo ) ) {
-				throw new RuntimeException( $repo->get_error_message() );
+				throw new RuntimeException( $repo->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 			}
 			$this->s['repo'] = $repo;
 			$this->say( 'Using GitHub repo ' . $repo['owner'] . '/' . $repo['repo'] . '.' );
@@ -884,7 +895,7 @@ class WPTA_Job {
 
 		$remote = $gh->remote_files( $this->s['repo'] );
 		if ( is_wp_error( $remote ) ) {
-			throw new RuntimeException( $remote->get_error_message() );
+			throw new RuntimeException( $remote->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 		}
 		if ( empty( $remote['complete'] ) ) {
 			// The commit replaces the whole tree, so files missing from a truncated listing would be deleted.
@@ -937,7 +948,7 @@ class WPTA_Job {
 		}
 		$stored = $gh->lfs_upload( $this->s['repo'], $objects );
 		if ( is_wp_error( $stored ) ) {
-			throw new RuntimeException( $stored->get_error_message() );
+			throw new RuntimeException( $stored->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 		}
 		foreach ( $slice as $rel ) {
 			$lfs = $this->s['lfs'][ $rel ] ?? null;
@@ -945,10 +956,10 @@ class WPTA_Job {
 				? $gh->blob( $this->s['repo'], WPTA_Media::lfs_pointer( $lfs['oid'], $lfs['size'] ) )
 				: $gh->blob_file( $this->s['repo'], $this->site_dir() . '/' . $rel );
 			if ( is_wp_error( $sha ) ) {
-				throw new RuntimeException( $rel . ': ' . $sha->get_error_message() );
+				throw new RuntimeException( $rel . ': ' . $sha->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 			}
 			if ( $sha !== $this->s['files'][ $rel ] ) {
-				throw new RuntimeException( $rel . ': GitHub stored different bytes than expected.' );
+				throw new RuntimeException( $rel . ': GitHub stored different bytes than expected.' ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 			}
 			$this->s['uploaded'][] = $rel;
 		}
@@ -968,7 +979,7 @@ class WPTA_Job {
 
 		$commit = $this->github()->commit( $this->s['repo'], WPTA_Sync::tree_changes( $plan ), $message, $this->s['remote']['head'], $this->s['remote']['tree'] ?? null );
 		if ( is_wp_error( $commit ) ) {
-			throw new RuntimeException( $commit->get_error_message() );
+			throw new RuntimeException( $commit->get_error_message() ); // phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- caught; shown as text (JSON + textContent, WP-CLI), never as HTML.
 		}
 		WPTA_Sync::save_manifest( $this->repo_key(), WPTA_Sync::next_manifest( $this->s['files'], $plan, WPTA_Sync::manifest( $this->repo_key() ) ), $commit['sha'] );
 		$this->s['result']['commit'] = $commit['url'];
@@ -1029,22 +1040,15 @@ class WPTA_Job {
 		foreach ( glob( self::root() . '/*', GLOB_ONLYDIR ) as $dir ) {
 			$state = $dir . '/state.json';
 			if ( is_file( $state ) && filemtime( $state ) < time() - DAY_IN_SECONDS ) {
-				self::rrmdir( $dir );
+				self::fs()->rmdir( $dir, true );
 			}
 		}
 		// The latest layout is what background syncs use, so it stays however old it is.
 		foreach ( array_merge( (array) glob( self::cache_dir() . '/*' ), (array) glob( self::cache_dir() . '/entries/*' ) ) as $file ) {
 			if ( is_file( $file ) && 'layout-latest.astro' !== basename( $file ) && filemtime( $file ) < time() - self::CACHE_TTL ) {
-				unlink( $file );
+				wp_delete_file( $file );
 			}
 		}
 	}
 
-	private static function rrmdir( string $dir ): void {
-		$it = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $dir, FilesystemIterator::SKIP_DOTS ), RecursiveIteratorIterator::CHILD_FIRST );
-		foreach ( $it as $f ) {
-			$f->isDir() ? rmdir( $f->getPathname() ) : unlink( $f->getPathname() );
-		}
-		rmdir( $dir );
-	}
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Passes the WordPress.org upload check (Plugin Check): templates and prompts no longer use heredocs, job folders and
+  cache files go through WordPress's file functions, and its false alarms are explained in the code.
+
 ## 0.3.0
 
 - Fixed: an AI layout that left an HTML element unclosed, or started with an empty `---` block, passed the checks

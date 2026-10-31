@@ -1286,7 +1286,8 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				</div>
 				<div class="wpta-field">
 					<label for="wpta-cdn-endpoint">Endpoint</label>
-					<input id="wpta-cdn-endpoint" class="wpta-in" type="url" name="wpta[cdn_endpoint]" value="<?php echo esc_attr( $s['cdn_endpoint'] ); ?>" placeholder="https://s3.us-east-1.amazonaws.com">
+					<input id="wpta-cdn-endpoint" class="wpta-in" type="url" name="wpta[cdn_endpoint]" value="<?php echo esc_attr( $s['cdn_endpoint'] ); ?>" placeholder="https://s3.us-east-1.amazonaws.com"><?php // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- placeholder text, nothing is loaded. ?>
+
 					<small>S3: leave empty for AWS, or your provider’s S3 endpoint. R2: <code>https://&lt;account id&gt;.r2.cloudflarestorage.com</code>. Bunny: the storage hostname, <code>https://storage.bunnycdn.com</code> by default.</small>
 				</div>
 				<div class="wpta-two">

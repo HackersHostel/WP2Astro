@@ -252,6 +252,19 @@ check( 'keep invalid UTF-8', WPTA_Exporter::decode_path( '/bad%e6%97/' ), '/bad%
 check( 'leave absolute URLs', WPTA_Exporter::decode_path( 'https://example.com/caf%c3%a9/' ), 'https://example.com/caf%c3%a9/' );
 check( 'leave protocol-relative URLs', WPTA_Exporter::decode_path( '//cdn.example.com/caf%c3%a9/' ), '//cdn.example.com/caf%c3%a9/' );
 
+/* ------------------------------------------------------- WordPress.org */
+
+// The plugin directory's upload check rejects heredocs (<<<EOT); nowdocs (<<<'EOT') with strtr() placeholders pass.
+$heredocs = array();
+foreach ( array_merge( glob( __DIR__ . '/../includes/*.php' ), array( __DIR__ . '/../wp2astro.php', __DIR__ . '/../uninstall.php' ) ) as $php ) {
+	foreach ( token_get_all( (string) file_get_contents( $php ) ) as $t ) {
+		if ( is_array( $t ) && T_START_HEREDOC === $t[0] && ! str_contains( $t[1], "'" ) ) {
+			$heredocs[] = basename( $php ) . ':' . $t[2];
+		}
+	}
+}
+check( 'wporg: no heredocs', $heredocs, array() );
+
 /* ------------------------------------------------------------ readme.txt */
 
 // WordPress.org readme rules (https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/),
