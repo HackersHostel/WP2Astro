@@ -55,7 +55,14 @@ Before the first submission and before each WordPress.org release:
 
 1. Run `bin/build-zip.sh --wporg`.
 2. Install `build/wporg/wp2astro.zip` on a clean site with [Plugin Check](https://wordpress.org/plugins/plugin-check/)
-   and run it on WP2Astro. Fix errors; file code findings as their own issues.
+   and run it the way the WordPress.org upload form does. Any error there rejects the upload:
+
+   ```bash
+   wp plugin check wp2astro --error-severity=7 --warning-severity=6 --include-low-severity-errors --exclude-checks=prefixing --categories=plugin_repo
+   ```
+
+   Then run `wp plugin check wp2astro` for everything a reviewer may ask about. Fix errors, or explain a false alarm
+   in a `phpcs:ignore … -- reason` comment; file larger code findings as their own issues.
 3. Paste `readme.txt` into the [readme validator](https://wordpress.org/plugins/developers/readme-validator/). It
    must show no errors or warnings.
 4. Check that **External services** in `readme.txt` lists every request in [Privacy](../privacy.md).

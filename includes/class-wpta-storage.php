@@ -26,7 +26,7 @@ class WPTA_Storage {
 		if ( '' === $endpoint && 'bunny' === $provider ) {
 			$endpoint = 'https://storage.bunnycdn.com';
 		} elseif ( '' === $endpoint && 's3' === $provider ) {
-			$endpoint = 'https://s3.' . $region . '.amazonaws.com';
+			$endpoint = 'https://s3.' . $region . '.amazonaws.com'; // phpcs:ignore PluginCheck.CodeAnalysis.Offloading.OffloadedContent -- the S3 API address for uploads, not an asset.
 		}
 		return array(
 			'provider' => $provider,

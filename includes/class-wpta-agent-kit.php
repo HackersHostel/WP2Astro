@@ -53,10 +53,10 @@ class WPTA_Agent_Kit {
 		foreach ( self::tasks( $report ) as $i => $t ) {
 			$tasks .= ( $i + 1 ) . '. ' . $t . "\n";
 		}
-		return <<<MD
+		$md = <<<'MD'
 # AGENTS.md
 
-This is an Astro site converted from the WordPress site {$site['url']} by {$brand}.
+This is an Astro site converted from the WordPress site {{url}} by {{brand}}.
 The WordPress site may still be online: use it as the visual reference.
 
 ## Commands
@@ -85,8 +85,9 @@ The WordPress site may still be online: use it as the visual reference.
 
 ## Open tasks
 
-{$tasks}
+{{tasks}}
 MD;
+		return strtr( $md, array( '{{url}}' => $site['url'], '{{brand}}' => $brand, '{{tasks}}' => $tasks ) );
 	}
 
 	private static function claude(): string {
@@ -105,7 +106,7 @@ MD;
 	}
 
 	private static function skill_layout( array $site ): string {
-		return <<<MD
+		$md = <<<'MD'
 ---
 name: wp2astro-polish-layout
 description: Make src/layouts/BaseLayout.astro match the live WordPress site's header, navigation and footer. Use when the converted site doesn't look like the original.
@@ -113,7 +114,7 @@ description: Make src/layouts/BaseLayout.astro match the live WordPress site's h
 
 # Polish the layout
 
-Reference site: {$site['url']}
+Reference site: {{url}}
 
 1. Fetch the live homepage and one post page. Note the header (logo, site title, header image), menu, sidebar position and footer.
 2. Run `npm run dev` and open the same pages at http://localhost:4321. If you can take screenshots, compare them side by side.
@@ -126,6 +127,7 @@ Reference site: {$site['url']}
 5. Run `npm run build` to confirm it still builds.
 
 MD;
+		return str_replace( '{{url}}', $site['url'], $md );
 	}
 
 	private static function skill_shortcodes(): string {

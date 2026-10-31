@@ -37,17 +37,17 @@ class WPTA_Connect {
 
 	/** Provider from the request, with unsaved form values (server URL, key, model) layered on top. */
 	private static function request_provider(): array {
-		$id = sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) );
+		$id = sanitize_key( wp_unslash( $_POST['provider'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the caller ran guard() (check_ajax_referer).
 		$p  = WPTA_Settings::provider( $id );
 		foreach ( array( 'api_key', 'model' ) as $f ) {
-			$v = trim( sanitize_text_field( wp_unslash( $_POST[ $f ] ?? '' ) ) );
+			$v = trim( sanitize_text_field( wp_unslash( $_POST[ $f ] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the caller ran guard() (check_ajax_referer).
 			if ( '' !== $v ) {
 				$p[ $f ] = $v;
 			}
 		}
-		$url = trim( (string) wp_unslash( $_POST['base_url'] ?? '' ) );
+		$url = esc_url_raw( sanitize_text_field( wp_unslash( $_POST['base_url'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Missing -- the caller ran guard() (check_ajax_referer).
 		if ( ! empty( $p['server'] ) && '' !== $url ) {
-			$p['base_url'] = rtrim( esc_url_raw( $url ), '/' );
+			$p['base_url'] = rtrim( $url, '/' );
 		}
 		return $p;
 	}
@@ -112,6 +112,7 @@ class WPTA_Connect {
 
 	/** OpenRouter redirects back to wp-admin with ?code=…&state=…; exchange the code for a user-controlled API key. */
 	public static function or_callback(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- an OAuth redirect: the state, compared with hash_equals() below, does the nonce's job.
 		if ( ! isset( $_GET['code'], $_GET['state'] ) || ! current_user_can( 'manage_options' ) ) {
 			return;
 		}
@@ -143,6 +144,7 @@ class WPTA_Connect {
 		WPTA_Settings::update( array( 'provider' => 'openrouter', 'keys' => $s['keys'] ) );
 		wp_safe_redirect( add_query_arg( 'wpta_notice', 'or_connected', $back ) . '#ai' );
 		exit;
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	}
 
 	/** Credits left on the connected OpenRouter account. */
@@ -182,6 +184,7 @@ class WPTA_Connect {
 
 	public static function cg_finish(): void {
 		self::guard();
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- guard() checked the nonce; finish() only reads code, state (compared) and error (sanitized) from it.
 		$res = WPTA_ChatGPT::finish( (string) wp_unslash( $_POST['callback'] ?? '' ) );
 		if ( is_wp_error( $res ) ) {
 			self::fail( $res );

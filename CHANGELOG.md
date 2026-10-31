@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - New dashboard. The first visit opens a three-step setup (**Choose AI**, **Connect GitHub**, **Convert**); after
   that the screen has **Overview**, **Activity** and **Settings** tabs. Overview shows the sync status with **Sync
@@ -55,6 +55,8 @@
 - Documentation rewritten as task-based guides for site owners, with developer pages for hooks, WP-CLI, white-label,
   the GitHub OAuth app and releasing. Every filter has a docblock with `@since`.
 - `bin/build-zip.sh --wporg` builds the WordPress.org version, without the GitHub updater and the `Update URI` header.
+- Passes the WordPress.org upload check (Plugin Check): templates and prompts no longer use heredocs, job folders and
+  cache files go through WordPress's file functions, and its false alarms are explained in the code.
 - New `WP2ASTRO_BRAND_FORUM` constant and `forum` brand key for the Help sidebar's "Ask a question" link.
 
 ## 0.2.0

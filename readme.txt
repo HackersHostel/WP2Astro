@@ -4,7 +4,7 @@ Tags: static site, astro, export, migration, github
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -118,6 +118,22 @@ Ask in [Q&A on GitHub](https://github.com/HackersHostel/wp2astro/discussions/cat
 
 == Changelog ==
 
+= 0.3.0 =
+
+First release on WordPress.org.
+
+* New dashboard: a three-step setup, then **Overview**, **Activity** and **Settings** tabs. Runs show each step live, with a **Stop** button.
+* **Local model**: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio, llama.cpp, vLLM).
+* **Claude plan**: converts with the default layout and shows the commands to finish the site in Claude Code.
+* **Settings → Media**: copy media into the repo, store it with Git LFS, leave it on WordPress, or upload it to Amazon S3, Cloudflare R2, an S3-compatible service or Bunny Storage.
+* Year, month and author archives at their WordPress URLs; category, tag and custom post type archives are paginated.
+* The theme's JavaScript is copied, so menu toggles keep working.
+* Optional custom fields (public post meta and ACF) in each entry's frontmatter.
+* `netlify.toml` with the build settings and redirects for old `?p=` links.
+* Faster syncs on large sites: auto-sync renders only changed posts, and commits send only changed files.
+* OpenRouter's default model is now the open Gemma 4.
+* Fixed: `.html` permalinks, text that looked like Markdown, two runs starting at once, and non-ASCII slugs.
+
 = 0.2.0 =
 
 First Hackers Hostel release, renamed from "WP to Astro" to WP2Astro.
@@ -141,6 +157,10 @@ First Hackers Hostel release, renamed from "WP to Astro" to WP2Astro.
 * Convert posts and pages to an Astro project with the same URLs, theme CSS, AI layout and shortcode cleanup; push to GitHub or download a zip.
 
 == Upgrade Notice ==
+
+= 0.3.0 =
+
+A new dashboard, local models, media in Git LFS or S3, R2 and Bunny storage, date and author archives, and faster syncs on large sites.
 
 = 0.2.0 =
 
