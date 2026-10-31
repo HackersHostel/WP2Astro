@@ -17,9 +17,9 @@
   <rect width="1544" height="500" fill="url(#glow-a)"/>
   <rect width="1544" height="500" fill="url(#glow-b)"/>
 
-  <!-- The logo from assets/logo.svg (the teal WA glyph), scaled. -->
-  <g transform="translate(120 105) scale(4.6)">
-    <polygon points="24.5,51 34,51 45.5,13 36,13" fill="#7bb4af" stroke="#7bb4af" stroke-width="1.6" stroke-linejoin="round"/><polygon points="36.5,13 46,13 56.5,51 47,51" fill="#7bb4af" stroke="#7bb4af" stroke-width="1.6" stroke-linejoin="round"/><polygon points="7.5,13 13.9,13 21.9,51 15.5,51" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="15.5,51 21.9,51 29.9,13 23.5,13" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="23.5,13 29.9,13 37.9,51 31.5,51" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><polygon points="31.5,51 37.9,51 45.9,13 39.5,13" fill="#0f766e" stroke="#0f766e" stroke-width="1.6" stroke-linejoin="round"/><rect x="40.5" y="35" width="9" height="6" rx="1" fill="#0f766e"/>
+  <!-- The WA mark (teal-dark ink, made for dark backgrounds), scaled. -->
+  <g transform="translate(78 76) scale(6)">
+    <path d="M32.34 47.38 L39.44 47.38 L38.46 43.51 L39.50 39.38 L45.88 39.38 L47.91 47.38 L55.00 47.38 L47.22 16.62 L40.13 16.62 L41.11 20.49 L36.87 37.23 L31.66 16.62 L24.56 16.62 L25.54 20.49 L21.31 37.23 L16.09 16.62 L9.00 16.62 L16.78 47.38 L23.87 47.38 L22.89 43.51 L27.13 26.77ZM42.69 26.77 L45.11 36.31 L40.28 36.31Z" fill="#2dd4bf" fill-rule="evenodd"/>
   </g>
 
   <g font-family="'Inter Display', Inter, 'Helvetica Neue', Arial, sans-serif">
