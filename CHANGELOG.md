@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0
 
 - Fixed: an AI layout that left an HTML element unclosed, or started with an empty `---` block, passed the checks
   and then broke `npm run build`. Element tags are now counted (a mismatch is sent back to the model for its retry),
@@ -48,7 +48,8 @@
   so an endpoint that doesn't answer fails quickly, and the media step stops on time even when uploads fail.
 - CI (#23, #24): builds a fixture Astro site with every URL case and checks `dist/` and `npm start`, and converts a
   real WordPress site against the mocks (AI, GitHub with LFS, S3 storage) with a visual comparison of the result.
-- New logo: the teal WA glyph, in the dashboard, the admin menu, the plugin icons and the banner.
+- New logo: the WA mark, in teal (teal-dark on dark backgrounds), in the dashboard, the admin menu, the plugin icons
+  and the banner.
 - **Local model** provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio,
   llama.cpp, vLLM) through any OpenAI-compatible **Server URL**.
 - OpenRouter's default model is now the open `google/gemma-4-31b-it` (was `anthropic/claude-haiku-5.5`).

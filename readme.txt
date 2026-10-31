@@ -4,7 +4,7 @@ Tags: static site, astro, export, migration, github
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,20 @@ Ask in [Q&A on GitHub](https://github.com/HackersHostel/wp2astro/discussions/cat
 
 == Changelog ==
 
+= 0.3.0 =
+
+* New dashboard: a three-step setup on the first visit (Choose AI, Connect GitHub, Convert), then Overview, Activity and Settings tabs. Runs show each step live, with a Stop button.
+* Local model provider: run open models such as Gemma, Llama or Qwen on your own server (Ollama, LM Studio, llama.cpp, vLLM). OpenRouter's default model is now the open Gemma 4 31B.
+* Claude plan is a choice under AI model: convert, then finish the site in Claude Code with the agent kit.
+* Media: copy it into the repository, store it with Git LFS, leave it on WordPress, or upload it to S3, Cloudflare R2 or Bunny Storage.
+* Year, month and author archives, and paginated category, tag and custom post type archives, at their WordPress URLs.
+* The theme's JavaScript is copied, so menu toggles keep working.
+* Optional custom fields (public post meta and ACF) in each entry's frontmatter.
+* Netlify settings with 301s for ?p=, ?page_id= and ?s= links.
+* Faster syncs on large sites: only changed posts are rendered and only changed files are committed.
+* Fixed: non-ASCII slugs, .html permalinks, Markdown-looking text, echoing shortcodes, AI layouts that broke the build, and two runs starting at once.
+* New logo.
+
 = 0.2.0 =
 
 First Hackers Hostel release, renamed from "WP to Astro" to WP2Astro.
@@ -143,6 +157,10 @@ First Hackers Hostel release, renamed from "WP to Astro" to WP2Astro.
 * Convert posts and pages to an Astro project with the same URLs, theme CSS, AI layout and shortcode cleanup; push to GitHub or download a zip.
 
 == Upgrade Notice ==
+
+= 0.3.0 =
+
+New dashboard with a guided setup, open models on your own server (Local model), media options, more archives and many fixes.
 
 = 0.2.0 =
 
