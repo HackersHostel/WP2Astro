@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Fixed: an AI layout that left an HTML element unclosed, or started with an empty `---` block, passed the checks
+  and then broke `npm run build`. Element tags are now counted (a mismatch is sent back to the model for its retry),
+  an empty leading block is merged into the frontmatter, and cached layouts are checked again before reuse.
+- Docs: Ollama's context size and timeouts for running a local model without a GPU.
 - New dashboard. The first visit opens a three-step setup (**Choose AI**, **Connect GitHub**, **Convert**); after
   that the screen has **Overview**, **Activity** and **Settings** tabs. Overview shows the sync status with **Sync
   now**, numbers from the last run, recent activity, connections and the Claude Code commands. Runs show each step
