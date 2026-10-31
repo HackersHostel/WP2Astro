@@ -22,7 +22,14 @@ model server instead of an AI company.
    ollama pull gemma4
    ```
 
-3. Ollama listens on `http://localhost:11434`. If WordPress runs on another machine, start Ollama with
+3. Give the model room for the layout prompt. Ollama's default context is 4096 tokens, which cuts off the page
+   WP2Astro sends, and the answer is then rejected. Start Ollama with a larger context:
+
+   ```bash
+   OLLAMA_CONTEXT_LENGTH=8192 ollama serve
+   ```
+
+4. Ollama listens on `http://localhost:11434`. If WordPress runs on another machine, also set
    `OLLAMA_HOST=0.0.0.0` so it accepts connections from your network.
 
 ## Connect WP2Astro
@@ -47,7 +54,11 @@ model server instead of an AI company.
 
 A local model can take a few minutes for the layout step, depending on your hardware. WP2Astro waits up to 300
 seconds for each answer. Developers can change that with the
-[`wpta_llm_timeout` filter](developers/hooks.md#wpta_llm_timeout). Results are cached, so syncs don't ask the model
+[`wpta_llm_timeout` filter](developers/hooks.md#wpta_llm_timeout). Without a GPU, one layout answer can take longer
+than that: on a 4-core CPU, Gemma 4 E4B took about five minutes, so allow 30 minutes or more there.
+
+Small models answer the layout step less reliably. On that CPU, Gemma 4 E2B's layouts were rejected and the default
+layout was used, while Gemma 4 E4B's passed. If the layout falls back, try the next size up. Results are cached, so syncs don't ask the model
 again unless your theme, menu or a post with dead shortcodes changed.
 
 ## What is sent
