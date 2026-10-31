@@ -4,7 +4,7 @@ Tags: static site, astro, export, migration, github
 Requires at least: 6.5
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.3.0
+Stable tag: 0.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -120,6 +120,12 @@ Ask in [Q&A on GitHub](https://github.com/HackersHostel/wp2astro/discussions/cat
 
 == Changelog ==
 
+= 0.3.1 =
+
+* First release in the WordPress.org plugin directory.
+* Job folders, the AI cache and uninstalling now use WordPress's own file functions.
+* The local model's Server URL is cleaned up before Test and Load models use it.
+
 = 0.3.0 =
 
 * New dashboard: a three-step setup on the first visit (Choose AI, Connect GitHub, Convert), then Overview, Activity and Settings tabs. Runs show each step live, with a Stop button.
@@ -157,6 +163,10 @@ First Hackers Hostel release, renamed from "WP to Astro" to WP2Astro.
 * Convert posts and pages to an Astro project with the same URLs, theme CSS, AI layout and shortcode cleanup; push to GitHub or download a zip.
 
 == Upgrade Notice ==
+
+= 0.3.1 =
+
+The first release in the WordPress.org plugin directory. Conversions and syncs work as in 0.3.0.
 
 = 0.3.0 =
 
