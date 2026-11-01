@@ -47,7 +47,8 @@ Add an `== Upgrade Notice ==` entry to `readme.txt` when the release needs one (
 
 The *Release* workflow runs the tests, checks that the tag matches the version, builds the zip (honoring
 `.distignore`) and publishes the release. Installed sites see the update within 12 hours, or right away from
-**Dashboard → Updates → Check again** once the cached release info expires.
+**Dashboard → Updates → Check again** once the cached release info expires. Once it passes, the *WordPress.org* workflow publishes the
+same version to the plugin directory, when it is turned on (see [below](#publish-to-wordpressorg-automatically)).
 
 ## Prepare the WordPress.org build
 
@@ -66,9 +67,29 @@ Before the first submission and before each WordPress.org release:
 3. Paste `readme.txt` into the [readme validator](https://wordpress.org/plugins/developers/readme-validator/). It
    must show no errors or warnings.
 4. Check that **External services** in `readme.txt` lists every request in [Privacy](../privacy.md).
-5. Commit `build/wporg/wp2astro/` to SVN `trunk/`, copy it to `tags/x.y.z/`, and copy `.wordpress-org/` to SVN
-   `assets/`. A deploy action such as [10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy)
-   can do this step; give it the `--wporg` build folder, not the repository root.
+5. Publish to WordPress.org: the *WordPress.org* workflow does it after the *Release* workflow (below). By hand,
+   commit `build/wporg/wp2astro/` to SVN `trunk/`, copy it to `tags/x.y.z/`, and copy `.wordpress-org/` to SVN
+   `assets/`.
+
+## Publish to WordPress.org automatically
+
+`.github/workflows/wporg-deploy.yml` (*WordPress.org* on the Actions tab) runs after the *Release* workflow passes for
+a `v*` tag. It checks that the tag matches the plugin version, runs `bin/build-zip.sh --wporg`, and uses
+[10up/action-wordpress-plugin-deploy](https://github.com/10up/action-wordpress-plugin-deploy) to commit the build to
+SVN `trunk/`, copy it to `tags/x.y.z/`, and sync `.wordpress-org/` to `assets/`. A version already in `tags/` is
+skipped.
+
+It stays off until WordPress.org has approved the plugin, because the SVN repository only exists from then. To turn
+it on, in the repository's **Settings → Secrets and variables → Actions**:
+
+1. Add the secret `SVN_USERNAME`: the WordPress.org username that owns the plugin (`mahmudurrahmanlabib`).
+2. Add the secret `SVN_PASSWORD`: the SVN password from that profile's **Account & Security** page, not the login
+   password.
+3. Add the variable `WPORG_DEPLOY` with the value `true`.
+
+Then publish the release WordPress.org approved: on the Actions tab, open **WordPress.org**, click **Run workflow**,
+enter the tag (for example `v0.3.1`) and leave **Dry run** off. **Dry run** builds and prepares the SVN commit without
+committing, to check the setup first. From then on, pushing a tag publishes to GitHub and then to WordPress.org.
 
 ## Plugin directory assets
 

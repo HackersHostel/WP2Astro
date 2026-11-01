@@ -1,0 +1,63 @@
+# Publish a release to the WordPress.org plugin directory (SVN): trunk, tags/x.y.z and the .wordpress-org/ assets,
+# from the `bin/build-zip.sh --wporg` build. It runs after the Release workflow passes for a v* tag, or by hand from
+# the Actions tab for an existing tag (with an optional dry run that stops before `svn commit`).
+# Off until the repository variable WPORG_DEPLOY is "true"; set it once WordPress.org has approved the plugin. Needs
+# the secrets SVN_USERNAME and SVN_PASSWORD (the SVN password from the WordPress.org profile, not the login one).
+# See docs/developers/releasing.md.
+name: WordPress.org
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish, such as v0.3.1"
+        required: true
+      dry_run:
+        description: "Dry run: prepare the SVN commit but don't commit"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wporg-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: >-
+      vars.WPORG_DEPLOY == 'true' && (
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+      )
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.event.workflow_run.head_branch }}
+    steps:
+      - name: Check the tag
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a release tag: $TAG"; exit 1; }
+          echo "VERSION=${TAG#v}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+      - name: Check the tag matches the plugin version
+        run: |
+          version=$(sed -n 's/^ \* Version: *//p' wp2astro.php | tr -d '[:space:]')
+          test "$version" = "$VERSION" || { echo "Tag $TAG but plugin version $version"; exit 1; }
+      - name: Build
+        run: bin/build-zip.sh --wporg
+      - name: Deploy
+        uses: 10up/action-wordpress-plugin-deploy@2.3.0
+        with:
+          dry-run: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: wp2astro
+          BUILD_DIR: build/wporg/wp2astro
+          ASSETS_DIR: .wordpress-org
