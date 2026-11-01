@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- `.github/workflows/wporg-deploy.yml` publishes each release to the WordPress.org plugin directory after the Release
+  workflow passes, and can publish an existing tag by hand. It is off until the `WPORG_DEPLOY` variable and the
+  `SVN_USERNAME` and `SVN_PASSWORD` secrets are set (see [Releasing](docs/developers/releasing.md)).
+
 ## 0.3.1
 
 The first release for the WordPress.org plugin directory.
