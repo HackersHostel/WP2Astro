@@ -437,6 +437,22 @@ class WPTA_Admin {
 
 	/* --------------------------------------------------------------- Pieces */
 
+	/** What the screen's own markup may contain: post HTML plus the inline SVG that icon() and logo() draw. */
+	private static function kses(): array {
+		static $allowed = null;
+		if ( null === $allowed ) {
+			$shape   = array_fill_keys( array( 'd', 'fill', 'fill-rule', 'transform', 'cx', 'cy', 'r', 'rx', 'ry', 'x', 'y', 'width', 'height' ), true );
+			$allowed = wp_kses_allowed_html( 'post' ) + array(
+				'svg'     => array_fill_keys( array( 'class', 'width', 'height', 'viewbox', 'fill', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'aria-hidden', 'focusable' ), true ),
+				'path'    => $shape,
+				'circle'  => $shape,
+				'rect'    => $shape,
+				'ellipse' => $shape,
+			);
+		}
+		return $allowed;
+	}
+
 	/** A line icon from ICONS. */
 	public static function icon( string $name, int $size = 20 ): string {
 		return '<svg class="wpta-i" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . ( self::ICONS[ $name ] ?? '' ) . '</svg>';
@@ -513,15 +529,11 @@ class WPTA_Admin {
 
 	private static function toggle( string $name, bool $on, string $icon, string $label, string $desc = '', array $attrs = array() ): void {
 		$id   = 'wpta-t-' . $name;
-		$more = '';
-		foreach ( $attrs as $k => $v ) {
-			$more .= ' ' . $k . ( true === $v ? '' : '="' . esc_attr( $v ) . '"' );
-		}
 		?>
 		<label class="wpta-pill" for="<?php echo esc_attr( $id ); ?>">
-			<span class="wpta-pill-icon"><?php echo self::icon( $icon, 18 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
+			<span class="wpta-pill-icon"><?php echo wp_kses( self::icon( $icon, 18 ), self::kses() ); ?></span>
 			<span class="wpta-pill-text"><strong><?php echo esc_html( $label ); ?></strong><?php if ( $desc ) : ?><small><?php echo esc_html( $desc ); ?></small><?php endif; ?></span>
-			<input type="checkbox" class="wpta-switch" role="switch" id="<?php echo esc_attr( $id ); ?>" name="wpta[<?php echo esc_attr( $name ); ?>]" value="1" <?php checked( $on ); ?><?php echo $more; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above. ?>>
+			<input type="checkbox" class="wpta-switch" role="switch" id="<?php echo esc_attr( $id ); ?>" name="wpta[<?php echo esc_attr( $name ); ?>]" value="1" <?php checked( $on ); ?><?php foreach ( $attrs as $k => $v ) { echo ' ' . esc_attr( $k ) . ( true === $v ? '' : '="' . esc_attr( $v ) . '"' ); } ?>>
 		</label>
 		<?php
 	}
@@ -605,7 +617,7 @@ class WPTA_Admin {
 				<input type="hidden" name="wpta[ai_cleanup]" value="<?php echo (int) $s['ai_cleanup']; ?>">
 
 				<div class="wpta-wizard-head">
-					<span class="wpta-eyebrow"><?php echo self::icon( 'sparkle', 14 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Setup · step <span class="wpta-step-n">1</span> of 3</span>
+					<span class="wpta-eyebrow"><?php echo wp_kses( self::icon( 'sparkle', 14 ), self::kses() ); ?>Setup · step <span class="wpta-step-n">1</span> of 3</span>
 					<?php foreach ( $titles as $n => $t ) : ?>
 						<div class="wpta-step-title" data-for="<?php echo (int) $n; ?>" <?php echo 1 === $n ? '' : 'hidden'; ?>>
 							<h2><?php echo esc_html( $t[0] ); ?></h2>
@@ -626,7 +638,7 @@ class WPTA_Admin {
 
 				<div class="wpta-pane" data-pane="2" hidden>
 					<section class="wpta-card wpta-split">
-						<div class="wpta-glow"><span class="wpta-tile is-xl is-brand"><?php echo self::logo( 'github', 44 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span></div>
+						<div class="wpta-glow"><span class="wpta-tile is-xl is-brand"><?php echo wp_kses( self::logo( 'github', 44 ), self::kses() ); ?></span></div>
 						<div class="wpta-split-body">
 							<?php self::github_box( $s ); ?>
 							<?php self::repo_fields( $s ); ?>
@@ -637,9 +649,9 @@ class WPTA_Admin {
 				<div class="wpta-pane" data-pane="3" hidden>
 					<div class="wpta-two">
 						<section class="wpta-card wpta-rows" aria-label="Summary">
-							<div class="wpta-row"><span class="wpta-tile"><?php echo self::icon( 'file' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><span><strong><?php echo esc_html( $counts ? implode( ' · ', $counts ) : 'Nothing published yet' ); ?></strong><small>Content, with the same URLs</small></span></div>
-							<div class="wpta-row"><span class="wpta-summary-tile" data-summary-tile="ai"><?php echo self::provider_tile( $s['provider'] ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><span><strong data-summary="ai"><?php echo esc_html( self::ai_summary( $s, WPTA_LLM::from_settings() ) ); ?></strong><small>Rebuilds the layout and cleans up shortcodes</small></span></div>
-							<div class="wpta-row"><span class="wpta-tile is-brand"><?php echo $gh ? self::logo( 'github' ) : self::icon( 'download' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><span><strong data-summary="output"><?php echo esc_html( self::output_summary( $s ) ); ?></strong><small>Where the Astro project goes</small></span></div>
+							<div class="wpta-row"><span class="wpta-tile"><?php echo wp_kses( self::icon( 'file' ), self::kses() ); ?></span><span><strong><?php echo esc_html( $counts ? implode( ' · ', $counts ) : 'Nothing published yet' ); ?></strong><small>Content, with the same URLs</small></span></div>
+							<div class="wpta-row"><span class="wpta-summary-tile" data-summary-tile="ai"><?php echo wp_kses( self::provider_tile( $s['provider'] ), self::kses() ); ?></span><span><strong data-summary="ai"><?php echo esc_html( self::ai_summary( $s, WPTA_LLM::from_settings() ) ); ?></strong><small>Rebuilds the layout and cleans up shortcodes</small></span></div>
+							<div class="wpta-row"><span class="wpta-tile is-brand"><?php echo wp_kses( $gh ? self::logo( 'github' ) : self::icon( 'download' ), self::kses() ); ?></span><span><strong data-summary="output"><?php echo esc_html( self::output_summary( $s ) ); ?></strong><small>Where the Astro project goes</small></span></div>
 						</section>
 						<section class="wpta-pills" aria-label="What to build">
 							<?php self::build_toggles( $s ); ?>
@@ -694,8 +706,8 @@ class WPTA_Admin {
 				?>
 				<label class="wpta-prov<?php echo $s['provider'] === $id ? ' is-selected' : ''; ?>">
 					<input type="radio" class="wpta-sr" name="wpta[provider]" value="<?php echo esc_attr( $id ); ?>" <?php checked( $s['provider'], $id ); ?>>
-					<span class="wpta-prov-tick" aria-hidden="true"><?php echo self::icon( 'check', 12 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
-					<span class="wpta-prov-art"><?php echo self::provider_tile( $id, $compact ? 20 : 26, 'wpta-tile' . ( $compact ? '' : ' is-lg' ) ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
+					<span class="wpta-prov-tick" aria-hidden="true"><?php echo wp_kses( self::icon( 'check', 12 ), self::kses() ); ?></span>
+					<span class="wpta-prov-art"><?php echo wp_kses( self::provider_tile( $id, $compact ? 20 : 26, 'wpta-tile' . ( $compact ? '' : ' is-lg' ) ), self::kses() ); ?></span>
 					<span class="wpta-prov-text">
 						<strong><?php echo esc_html( $all[ $id ]['label'] ); ?></strong>
 						<span><?php echo esc_html( $c[0] ); ?></span>
@@ -712,7 +724,7 @@ class WPTA_Admin {
 			$r = WPTA_Settings::provider( $id );
 			?>
 			<section class="wpta-card wpta-panel" data-provider="<?php echo esc_attr( $id ); ?>" aria-label="<?php echo esc_attr( $p['label'] ); ?>" <?php echo $s['provider'] === $id ? '' : 'hidden'; ?>>
-				<?php echo self::provider_tile( $id ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>
+				<?php echo wp_kses( self::provider_tile( $id ), self::kses() ); ?>
 				<div class="wpta-panel-body">
 					<?php
 					if ( 'openrouter' === $id ) {
@@ -741,7 +753,7 @@ class WPTA_Admin {
 				<div class="wpta-field">
 					<label for="wpta-base-<?php echo esc_attr( $id ); ?>">Server URL</label>
 					<input id="wpta-base-<?php echo esc_attr( $id ); ?>" class="wpta-in wpta-base" type="url" name="wpta[base_urls][<?php echo esc_attr( $id ); ?>]" value="<?php echo esc_attr( $r['base_url'] ); ?>" placeholder="<?php echo esc_attr( $p['base_url'] ); ?>">
-					<small>Ollama (<code>http://localhost:11434/v1</code>), LM Studio (<code>http://localhost:1234/v1</code>), llama.cpp or vLLM. WordPress must be able to reach it. <?php echo self::doc_link( 'local-models', 'Run a local model' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small>
+					<small>Ollama (<code>http://localhost:11434/v1</code>), LM Studio (<code>http://localhost:1234/v1</code>), llama.cpp or vLLM. WordPress must be able to reach it. <?php echo wp_kses_post( self::doc_link( 'local-models', 'Run a local model' ) ); ?></small>
 				</div>
 			<?php endif; ?>
 			<?php if ( $p['key'] ) : ?>
@@ -773,21 +785,21 @@ class WPTA_Admin {
 		<div class="wpta-connect" data-connect="openrouter">
 			<?php if ( '' !== $r['api_key'] ) : ?>
 				<div class="wpta-balance-row">
-					<span class="wpta-badge is-good"><?php echo self::icon( 'check', 12 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Connected</span>
+					<span class="wpta-badge is-good"><?php echo wp_kses( self::icon( 'check', 12 ), self::kses() ); ?>Connected</span>
 					<strong class="wpta-big wpta-balance">checking credits…</strong>
 				</div>
 				<p class="wpta-actions">
-					<a class="wpta-btn is-primary wpta-buy" href="<?php echo esc_url( WPTA_Connect::OPENROUTER_CREDITS ); ?>" target="_blank" rel="noopener"><?php echo self::logo( 'openrouter', 16, false, true ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Buy credits ↗</a>
+					<a class="wpta-btn is-primary wpta-buy" href="<?php echo esc_url( WPTA_Connect::OPENROUTER_CREDITS ); ?>" target="_blank" rel="noopener"><?php echo wp_kses( self::logo( 'openrouter', 16, false, true ), self::kses() ); ?>Buy credits ↗</a>
 					<button type="button" class="wpta-btn wpta-balance-refresh">Refresh balance</button>
 					<button type="button" class="wpta-link wpta-or-connect">Reconnect</button>
 				</p>
-				<small>Credits are bought on OpenRouter and show up here. Models marked “free” cost nothing. <?php echo self::doc_link( 'openrouter', 'Credits and free models' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small>
+				<small>Credits are bought on OpenRouter and show up here. Models marked “free” cost nothing. <?php echo wp_kses_post( self::doc_link( 'openrouter', 'Credits and free models' ) ); ?></small>
 			<?php else : ?>
 				<p class="wpta-actions">
-					<button type="button" class="wpta-btn is-primary wpta-or-connect"><?php echo self::logo( 'openrouter', 16, false, true ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Connect OpenRouter</button>
+					<button type="button" class="wpta-btn is-primary wpta-or-connect"><?php echo wp_kses( self::logo( 'openrouter', 16, false, true ), self::kses() ); ?>Connect OpenRouter</button>
 					<span class="wpta-muted">Opens openrouter.ai, then comes back here.</span>
 				</p>
-				<small>No account yet? Create one while connecting. <?php echo self::doc_link( 'openrouter', 'Costs and free models' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small>
+				<small>No account yet? Create one while connecting. <?php echo wp_kses_post( self::doc_link( 'openrouter', 'Costs and free models' ) ); ?></small>
 			<?php endif; ?>
 		</div>
 		<?php
@@ -798,7 +810,7 @@ class WPTA_Admin {
 		<div class="wpta-connect" data-connect="chatgpt">
 			<div class="wpta-cg-on" <?php echo $cg['connected'] ? '' : 'hidden'; ?>>
 				<p class="wpta-actions">
-					<span class="wpta-badge is-good"><?php echo self::icon( 'check', 12 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Signed in<span class="wpta-cg-email"><?php echo $cg['email'] ? ' as ' . esc_html( $cg['email'] ) : ''; ?></span></span>
+					<span class="wpta-badge is-good"><?php echo wp_kses( self::icon( 'check', 12 ), self::kses() ); ?>Signed in<span class="wpta-cg-email"><?php echo $cg['email'] ? ' as ' . esc_html( $cg['email'] ) : ''; ?></span></span>
 					<a class="wpta-btn" href="<?php echo esc_url( $cg['usage_url'] ); ?>" target="_blank" rel="noopener">Usage &amp; limits ↗</a>
 					<button type="button" class="wpta-link wpta-cg-signout">Sign out</button>
 				</p>
@@ -810,13 +822,13 @@ class WPTA_Admin {
 					<div class="wpta-mini"><span class="num">3</span><span><strong>Paste it here</strong><small>WordPress finishes the sign-in.</small></span></div>
 				</div>
 				<p class="wpta-actions">
-					<button type="button" class="wpta-btn is-primary wpta-cg-start"><?php echo self::logo( 'openai', 16, true ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Sign in with ChatGPT</button>
+					<button type="button" class="wpta-btn is-primary wpta-cg-start"><?php echo wp_kses( self::logo( 'openai', 16, true ), self::kses() ); ?>Sign in with ChatGPT</button>
 				</p>
 				<div class="wpta-cg-paste wpta-inline" hidden>
 					<input type="url" class="wpta-in wpta-cg-callback" aria-label="Address from the ChatGPT tab" placeholder="http://127.0.0.1:1455/auth/callback?code=…">
 					<button type="button" class="wpta-btn is-primary wpta-cg-finish">Finish sign-in</button>
 				</div>
-				<small>Requires ChatGPT Plus or Pro. Usage counts toward your plan’s limits. <?php echo self::doc_link( 'chatgpt', 'How sign-in works' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small>
+				<small>Requires ChatGPT Plus or Pro. Usage counts toward your plan’s limits. <?php echo wp_kses_post( self::doc_link( 'chatgpt', 'How sign-in works' ) ); ?></small>
 			</div>
 		</div>
 		<?php
@@ -833,7 +845,7 @@ class WPTA_Admin {
 		<pre class="wpta-code">git clone <?php echo esc_html( $repo ); ?>
 
 cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polish-layout"</pre>
-		<small>Claude plans only work in Claude’s own apps, so the polishing happens in Claude Code, on your computer. <?php echo self::doc_link( 'claude-code', 'Finish the site with Claude Code' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small>
+		<small>Claude plans only work in Claude’s own apps, so the polishing happens in Claude Code, on your computer. <?php echo wp_kses_post( self::doc_link( 'claude-code', 'Finish the site with Claude Code' ) ); ?></small>
 		<?php
 	}
 
@@ -846,7 +858,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 		<div class="wpta-connect" data-connect="github">
 			<?php if ( $connected ) : ?>
 				<p class="wpta-actions">
-					<span class="wpta-badge is-good"><?php echo self::icon( 'check', 12 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Connected<?php echo $s['github_login'] ? ' as @' . esc_html( $s['github_login'] ) : ''; ?></span>
+					<span class="wpta-badge is-good"><?php echo wp_kses( self::icon( 'check', 12 ), self::kses() ); ?>Connected<?php echo $s['github_login'] ? ' as @' . esc_html( $s['github_login'] ) : ''; ?></span>
 					<span class="wpta-muted"><?php echo 'oauth' === $s['github_auth'] ? 'with the GitHub app' : 'with an access token'; ?></span>
 				</p>
 				<p class="wpta-actions">
@@ -856,18 +868,18 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				<p class="wpta-msg wpta-gh-status" aria-live="polite"></p>
 			<?php else : ?>
 				<?php if ( $oauth ) : ?>
-					<p class="wpta-actions"><button type="button" class="wpta-btn is-primary wpta-gh-start"><?php echo self::logo( 'github', 16, true ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Connect GitHub</button></p>
+					<p class="wpta-actions"><button type="button" class="wpta-btn is-primary wpta-gh-start"><?php echo wp_kses( self::logo( 'github', 16, true ), self::kses() ); ?>Connect GitHub</button></p>
 					<div class="wpta-gh-device" hidden>
 						<strong>Enter this code on GitHub</strong>
 						<p class="wpta-actions"><code class="wpta-devcode wpta-gh-code"></code> <button type="button" class="wpta-btn wpta-copy">Copy</button></p>
-						<p class="wpta-actions"><a class="wpta-btn is-primary wpta-gh-open" href="https://github.com/login/device" target="_blank" rel="noopener"><?php echo self::logo( 'github', 16, true ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Open github.com/login/device ↗</a> <span class="wpta-badge wpta-gh-wait">Waiting for approval…</span></p>
+						<p class="wpta-actions"><a class="wpta-btn is-primary wpta-gh-open" href="https://github.com/login/device" target="_blank" rel="noopener"><?php echo wp_kses( self::logo( 'github', 16, true ), self::kses() ); ?>Open github.com/login/device ↗</a> <span class="wpta-badge wpta-gh-wait">Waiting for approval…</span></p>
 					</div>
 					<p class="wpta-msg" aria-live="polite"></p>
 				<?php endif; ?>
 				<details class="wpta-token" <?php echo $oauth ? '' : 'open'; ?>>
 					<summary><?php echo $oauth ? 'Use a personal access token instead' : 'Connect with a personal access token'; ?></summary>
 					<input type="password" class="wpta-in" autocomplete="off" name="wpta[github_token]" value="" placeholder="github_pat_…" aria-label="Personal access token">
-					<small><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a fine-grained token ↗</a> with <strong>Administration</strong> and <strong>Contents</strong> set to read &amp; write. Stored encrypted. <?php echo self::doc_link( 'github', 'Step by step' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small>
+					<small><a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">Create a fine-grained token ↗</a> with <strong>Administration</strong> and <strong>Contents</strong> set to read &amp; write. Stored encrypted. <?php echo wp_kses_post( self::doc_link( 'github', 'Step by step' ) ); ?></small>
 				</details>
 			<?php endif; ?>
 		</div>
@@ -936,7 +948,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 					<h2 id="wpta-run-title"><?php echo $gh ? 'Syncing with GitHub…' : 'Converting your site…'; ?></h2>
 					<p class="wpta-phase" aria-live="polite">Starting…</p>
 					<p class="wpta-actions">
-						<button type="button" class="wpta-btn wpta-stop"><?php echo self::icon( 'stop', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Stop</button>
+						<button type="button" class="wpta-btn wpta-stop"><?php echo wp_kses( self::icon( 'stop', 16 ), self::kses() ); ?>Stop</button>
 					</p>
 					<div id="wpta-result" hidden></div>
 				</div>
@@ -945,7 +957,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 			<ol class="wpta-phases">
 				<?php foreach ( $steps as $id => $st ) : ?>
 					<li data-phase="<?php echo esc_attr( $id ); ?>" <?php echo ! $gh && 0 === strpos( $id, 'github' ) ? 'hidden' : ''; ?>>
-						<span class="wpta-tile is-sm"><?php echo 'github' === $st[0] ? self::logo( 'github', 16, true ) : self::icon( $st[0], 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
+						<span class="wpta-tile is-sm"><?php echo wp_kses( 'github' === $st[0] ? self::logo( 'github', 16, true ) : self::icon( $st[0], 16 ), self::kses() ); ?></span>
 						<span class="wpta-phase-label"><?php echo esc_html( $st[1] ); ?></span>
 						<span class="wpta-phase-time"></span>
 					</li>
@@ -974,10 +986,10 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				<?php self::brand_block( true ); ?>
 				<nav class="wpta-tabs" aria-label="<?php echo esc_attr( $brand['name'] ); ?> sections">
 					<?php foreach ( $tabs as $id => $t ) : ?>
-						<a href="#<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>" <?php echo 'overview' === $id ? 'aria-current="page"' : ''; ?>><?php echo self::icon( $t[0], 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?><?php echo esc_html( $t[1] ); ?></a>
+						<a href="#<?php echo esc_attr( $id ); ?>" data-tab="<?php echo esc_attr( $id ); ?>" <?php echo 'overview' === $id ? 'aria-current="page"' : ''; ?>><?php echo wp_kses( self::icon( $t[0], 16 ), self::kses() ); ?><?php echo esc_html( $t[1] ); ?></a>
 					<?php endforeach; ?>
 				</nav>
-				<button type="button" class="wpta-btn is-quiet wpta-help"><?php echo self::icon( 'help', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Help</button>
+				<button type="button" class="wpta-btn is-quiet wpta-help"><?php echo wp_kses( self::icon( 'help', 16 ), self::kses() ); ?>Help</button>
 			</header>
 			<h1 class="screen-reader-text"><?php echo esc_html( $brand['name'] ); ?></h1>
 			<hr class="wp-header-end">
@@ -1001,7 +1013,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 
 			<div class="wpta-tabpanel" data-panel="activity" hidden>
 				<section class="wpta-card wpta-pad" id="history">
-					<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'activity' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2>Recent runs</h2><small>The last <?php echo (int) WPTA_Sync::MAX_RUNS; ?> runs: the button, auto-sync and WP-CLI.</small></div></div>
+					<div class="wpta-head"><span class="wpta-tile"><?php echo wp_kses( self::icon( 'activity' ), self::kses() ); ?></span><div><h2>Recent runs</h2><small>The last <?php echo (int) WPTA_Sync::MAX_RUNS; ?> runs: the button, auto-sync and WP-CLI.</small></div></div>
 					<div class="wpta-table-wrap">
 						<table class="wpta-runs">
 							<thead><tr><th>When</th><th>How</th><th>Result</th><th><span class="screen-reader-text">Links</span></th></tr></thead>
@@ -1047,24 +1059,24 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				<span class="wpta-badge <?php echo esc_attr( $badge ); ?>">● <?php echo esc_html( $hero['badge'] ); ?></span>
 				<h2 id="wpta-hero-title"><?php echo esc_html( $hero['title'] ); ?></h2>
 				<?php if ( '' !== $hero['text'] ) : ?><p><?php echo esc_html( $hero['text'] ); ?></p><?php endif; ?>
-				<?php if ( $meta ) : ?><p class="wpta-meta"><?php echo implode( ' · ', $meta ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above. ?></p><?php endif; ?>
+				<?php if ( $meta ) : ?><p class="wpta-meta"><?php echo wp_kses_post( implode( ' · ', $meta ) ); ?></p><?php endif; ?>
 				<p class="wpta-actions">
 					<?php // Never disabled: while a run holds the lock, admin.js asks before starting anyway. ?>
-					<button type="button" class="wpta-btn is-primary" id="wpta-start" <?php echo $hero['restart'] ? 'data-force="1"' : ''; ?>><?php echo self::icon( 'sync', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?><span><?php echo esc_html( $hero['restart'] ? 'Start again' : ( $gh && $last ? 'Sync now' : 'Convert to Astro' ) ); ?></span></button>
+					<button type="button" class="wpta-btn is-primary" id="wpta-start" <?php echo $hero['restart'] ? 'data-force="1"' : ''; ?>><?php echo wp_kses( self::icon( 'sync', 16 ), self::kses() ); ?><span><?php echo esc_html( $hero['restart'] ? 'Start again' : ( $gh && $last ? 'Sync now' : 'Convert to Astro' ) ); ?></span></button>
 					<?php if ( $repo ) : ?>
-						<a class="wpta-btn" href="<?php echo esc_url( $repo ); ?>" target="_blank" rel="noopener"><?php echo self::logo( 'github', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Open repo</a>
+						<a class="wpta-btn" href="<?php echo esc_url( $repo ); ?>" target="_blank" rel="noopener"><?php echo wp_kses( self::logo( 'github', 16 ), self::kses() ); ?>Open repo</a>
 					<?php endif; ?>
 					<?php if ( $zip ) : ?>
-						<a class="wpta-btn" href="<?php echo esc_url( $zip ); ?>"><?php echo self::icon( 'download', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Download zip</a>
+						<a class="wpta-btn" href="<?php echo esc_url( $zip ); ?>"><?php echo wp_kses( self::icon( 'download', 16 ), self::kses() ); ?>Download zip</a>
 					<?php endif; ?>
 				</p>
 			</div>
 			<div class="wpta-glow wpta-flow" aria-hidden="true">
 				<span class="wpta-flow-node"><span class="wpta-tile is-lg is-brand"><span class="dashicons dashicons-wordpress"></span></span><small><?php echo esc_html( $host ); ?></small></span>
-				<?php echo self::icon( 'arrow', 18 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>
+				<?php echo wp_kses( self::icon( 'arrow', 18 ), self::kses() ); ?>
 				<span class="wpta-flow-node"><span class="wpta-tile is-lg is-brand"><img src="<?php echo esc_url( WPTA_Settings::brand()['logo'] ); ?>" alt="" width="30" height="30"></span><small>Astro</small></span>
-				<?php echo self::icon( 'arrow', 18 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>
-				<span class="wpta-flow-node"><span class="wpta-tile is-lg is-brand"><?php echo $gh ? self::logo( 'github', 26 ) : self::icon( 'download', 26 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><small><?php echo esc_html( $gh ? $s['repo_name'] : 'zip' ); ?></small></span>
+				<?php echo wp_kses( self::icon( 'arrow', 18 ), self::kses() ); ?>
+				<span class="wpta-flow-node"><span class="wpta-tile is-lg is-brand"><?php echo wp_kses( $gh ? self::logo( 'github', 26 ) : self::icon( 'download', 26 ), self::kses() ); ?></span><small><?php echo esc_html( $gh ? $s['repo_name'] : 'zip' ); ?></small></span>
 			</div>
 		</section>
 		<?php
@@ -1085,7 +1097,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 		<div class="wpta-stats">
 			<?php foreach ( $stats as $st ) : ?>
 				<div class="wpta-card wpta-stat">
-					<span class="wpta-tile"><?php echo self::icon( $st[0] ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
+					<span class="wpta-tile"><?php echo wp_kses( self::icon( $st[0] ), self::kses() ); ?></span>
 					<strong class="<?php echo strlen( (string) $st[1] ) > 9 ? 'is-long' : ''; ?>"><?php echo esc_html( (string) $st[1] ); ?></strong>
 					<span><?php echo esc_html( $st[2] ); ?></span>
 					<small><?php echo esc_html( $st[3] ); ?></small>
@@ -1116,7 +1128,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 					)[ $item['kind'] ];
 					?>
 					<li>
-						<?php echo $tile; // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>
+						<?php echo wp_kses( $tile, self::kses() ); ?>
 						<div>
 							<strong><?php echo esc_html( $item['title'] ); ?></strong>
 							<?php if ( $item['text'] ) : ?><small><?php echo esc_html( mb_substr( $item['text'], 0, 160 ) ); ?></small><?php endif; ?>
@@ -1158,8 +1170,8 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 		<section class="wpta-card wpta-pad" aria-labelledby="wpta-con-title">
 			<h2 id="wpta-con-title">Connections</h2>
 			<div class="wpta-kv">
-				<?php echo self::provider_tile( $id ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>
-				<span class="wpta-kv-text"><strong><?php echo esc_html( $title ); ?></strong><small><?php echo $sub; // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above. ?></small></span>
+				<?php echo wp_kses( self::provider_tile( $id ), self::kses() ); ?>
+				<span class="wpta-kv-text"><strong><?php echo esc_html( $title ); ?></strong><small><?php echo wp_kses_post( $sub ); ?></small></span>
 				<?php if ( 'openrouter' === $id && '' !== $p['api_key'] ) : ?>
 					<a class="wpta-btn is-sm" href="<?php echo esc_url( WPTA_Connect::OPENROUTER_CREDITS ); ?>" target="_blank" rel="noopener">Buy credits</a>
 				<?php else : ?>
@@ -1167,7 +1179,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				<?php endif; ?>
 			</div>
 			<div class="wpta-kv">
-				<span class="wpta-tile is-brand"><?php echo self::logo( 'github' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
+				<span class="wpta-tile is-brand"><?php echo wp_kses( self::logo( 'github' ), self::kses() ); ?></span>
 				<span class="wpta-kv-text"><strong>GitHub</strong><small><?php echo esc_html( $gh ? self::output_summary( $s ) : 'Not connected — you get a zip' ); ?></small></span>
 				<?php if ( $repo ) : ?>
 					<a class="wpta-btn is-sm" href="<?php echo esc_url( $repo ); ?>" target="_blank" rel="noopener">Open</a>
@@ -1176,7 +1188,7 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				<?php endif; ?>
 			</div>
 			<label class="wpta-kv" for="wpta-auto-now">
-				<span class="wpta-tile"><?php echo self::icon( 'sync' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
+				<span class="wpta-tile"><?php echo wp_kses( self::icon( 'sync' ), self::kses() ); ?></span>
 				<span class="wpta-kv-text"><strong>Auto-sync</strong><small><?php echo $gh ? 'Syncs a couple of minutes after you publish' : 'Needs GitHub'; ?></small></span>
 				<input type="checkbox" class="wpta-switch wpta-auto-now" role="switch" id="wpta-auto-now" <?php checked( $s['auto_sync'] && $gh ); ?> <?php disabled( ! $gh ); ?>>
 			</label>
@@ -1191,13 +1203,13 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 			: "# Unzip the download, then in that folder:\nclaude \"/wp2astro-polish-layout\"";
 		?>
 		<section class="wpta-card wpta-pad" aria-labelledby="wpta-cc-title">
-			<div class="wpta-head"><span class="wpta-tile is-brand"><?php echo self::logo( 'claude' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><h2 id="wpta-cc-title">Finish it with Claude Code</h2></div>
+			<div class="wpta-head"><span class="wpta-tile is-brand"><?php echo wp_kses( self::logo( 'claude' ), self::kses() ); ?></span><h2 id="wpta-cc-title">Finish it with Claude Code</h2></div>
 			<?php if ( $s['agent_kit'] ) : ?>
 				<p class="wpta-muted">Open the <?php echo $gh ? 'repo' : 'project'; ?> in Claude Code and polish what the conversion couldn’t, on your Claude plan.</p>
 				<pre class="wpta-code" id="wpta-cc-cmd"><?php echo esc_html( $cmd ); ?></pre>
 				<p class="wpta-actions">
-					<button type="button" class="wpta-btn is-sm" data-copy="#wpta-cc-cmd"><?php echo self::icon( 'copy', 14 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Copy</button>
-					<?php echo self::doc_link( 'claude-code', 'How it works' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?>
+					<button type="button" class="wpta-btn is-sm" data-copy="#wpta-cc-cmd"><?php echo wp_kses( self::icon( 'copy', 14 ), self::kses() ); ?>Copy</button>
+					<?php echo wp_kses_post( self::doc_link( 'claude-code', 'How it works' ) ); ?>
 				</p>
 			<?php else : ?>
 				<p class="wpta-muted">Turn on <a href="#output">Agent kit</a> in Settings, then sync. The repo gets the skills Claude Code uses.</p>
@@ -1210,13 +1222,13 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 		$hosts = array( 'FlyWP', 'DigitalOcean', 'Render', 'Netlify', 'Cloudflare Pages', 'Any static host' );
 		?>
 		<section class="wpta-card wpta-pad" aria-labelledby="wpta-dep-title">
-			<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'globe' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><h2 id="wpta-dep-title">Deploy anywhere</h2></div>
+			<div class="wpta-head"><span class="wpta-tile"><?php echo wp_kses( self::icon( 'globe' ), self::kses() ); ?></span><h2 id="wpta-dep-title">Deploy anywhere</h2></div>
 			<ul class="wpta-hosts">
 				<?php foreach ( $hosts as $h ) : ?>
 					<li><?php echo esc_html( $h ); ?></li>
 				<?php endforeach; ?>
 			</ul>
-			<p class="wpta-muted">Build with <code>npm run build</code>, or run <code>npm start</code> to serve the WordPress redirects too. <?php echo self::doc_link( 'deploy', 'Deploy the site' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></p>
+			<p class="wpta-muted">Build with <code>npm run build</code>, or run <code>npm start</code> to serve the WordPress redirects too. <?php echo wp_kses_post( self::doc_link( 'deploy', 'Deploy the site' ) ); ?></p>
 		</section>
 		<?php
 	}
@@ -1245,8 +1257,8 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				esc_attr( wp_date( 'Y-m-d H:i', (int) ( $r['started'] ?? 0 ) ) ),
 				esc_html( self::ago( (int) ( $r['started'] ?? 0 ) ) ),
 				esc_html( $how[ $r['trigger'] ?? '' ] ?? '' ),
-				$res, // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above.
-				$links // phpcs:ignore WordPress.Security.EscapeOutput -- escaped above.
+				wp_kses_post( $res ),
+				wp_kses_post( $links )
 			);
 		}
 	}
@@ -1264,13 +1276,13 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 		);
 		?>
 		<section class="wpta-card wpta-sec" id="media" aria-labelledby="media-h">
-			<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'image' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="media-h">Media</h2><small>Where images and other uploads go. Changing it rebuilds every entry on the next run. <?php echo self::doc_link( 'media', 'Choose where media goes' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small></div></div>
+			<div class="wpta-head"><span class="wpta-tile"><?php echo wp_kses( self::icon( 'image' ), self::kses() ); ?></span><div><h2 id="media-h">Media</h2><small>Where images and other uploads go. Changing it rebuilds every entry on the next run. <?php echo wp_kses_post( self::doc_link( 'media', 'Choose where media goes' ) ); ?></small></div></div>
 			<div class="wpta-provs is-compact is-described" role="radiogroup" aria-label="Media storage">
 				<?php foreach ( WPTA_Media::MODES as $id => $label ) : ?>
 					<label class="wpta-prov<?php echo $mode === $id ? ' is-selected' : ''; ?>">
 						<input type="radio" class="wpta-sr" name="wpta[media_mode]" value="<?php echo esc_attr( $id ); ?>" <?php checked( $mode, $id ); ?>>
-						<span class="wpta-prov-tick" aria-hidden="true"><?php echo self::icon( 'check', 12 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span>
-						<span class="wpta-prov-art"><span class="wpta-tile<?php echo 'lfs' === $id ? ' is-brand' : ''; ?>"><?php echo 'lfs' === $id ? self::logo( 'github' ) : self::icon( $modes[ $id ][0] ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span></span>
+						<span class="wpta-prov-tick" aria-hidden="true"><?php echo wp_kses( self::icon( 'check', 12 ), self::kses() ); ?></span>
+						<span class="wpta-prov-art"><span class="wpta-tile<?php echo 'lfs' === $id ? ' is-brand' : ''; ?>"><?php echo wp_kses( 'lfs' === $id ? self::logo( 'github' ) : self::icon( $modes[ $id ][0] ), self::kses() ); ?></span></span>
 						<span class="wpta-prov-text"><strong><?php echo esc_html( $label ); ?></strong><span><?php echo esc_html( $modes[ $id ][1] ); ?></span></span>
 					</label>
 				<?php endforeach; ?>
@@ -1343,12 +1355,12 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 		?>
 			<nav class="wpta-subnav" aria-label="Settings sections">
 				<?php foreach ( $nav as $id => $n ) : ?>
-					<a href="#<?php echo esc_attr( $id ); ?>"><?php echo $n[0]; // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?><?php echo esc_html( $n[1] ); ?></a>
+					<a href="#<?php echo esc_attr( $id ); ?>"><?php echo wp_kses( $n[0], self::kses() ); ?><?php echo esc_html( $n[1] ); ?></a>
 				<?php endforeach; ?>
 			</nav>
 			<div class="wpta-sections">
 				<section class="wpta-card wpta-sec" id="ai" aria-labelledby="ai-h">
-					<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'sparkle' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="ai-h">AI model</h2><small>Layout and shortcode cleanup. Results are cached, so a sync doesn’t call the model again unless your theme or those posts change. <?php echo self::doc_link( 'providers', 'Choose an AI model' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small></div></div>
+					<div class="wpta-head"><span class="wpta-tile"><?php echo wp_kses( self::icon( 'sparkle' ), self::kses() ); ?></span><div><h2 id="ai-h">AI model</h2><small>Layout and shortcode cleanup. Results are cached, so a sync doesn’t call the model again unless your theme or those posts change. <?php echo wp_kses_post( self::doc_link( 'providers', 'Choose an AI model' ) ); ?></small></div></div>
 					<?php self::provider_cards( $s, $cg, true ); ?>
 					<?php self::provider_panels( $s, $cg ); ?>
 					<div class="wpta-pills">
@@ -1358,27 +1370,27 @@ cd <?php echo esc_html( $s['repo_name'] ); ?> &amp;&amp; claude "/wp2astro-polis
 				</section>
 
 				<section class="wpta-card wpta-sec" id="github" aria-labelledby="gh-h">
-					<div class="wpta-head"><span class="wpta-tile is-brand"><?php echo self::logo( 'github' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="gh-h">GitHub</h2><small>Push the Astro site to a repo, then deploy it anywhere. Without GitHub you get a zip. <?php echo self::doc_link( 'github', 'Connect GitHub' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small></div></div>
+					<div class="wpta-head"><span class="wpta-tile is-brand"><?php echo wp_kses( self::logo( 'github' ), self::kses() ); ?></span><div><h2 id="gh-h">GitHub</h2><small>Push the Astro site to a repo, then deploy it anywhere. Without GitHub you get a zip. <?php echo wp_kses_post( self::doc_link( 'github', 'Connect GitHub' ) ); ?></small></div></div>
 					<?php self::github_box( $s ); ?>
 					<?php self::repo_fields( $s ); ?>
 				</section>
 
 				<section class="wpta-card wpta-sec" id="output" aria-labelledby="out-h">
-					<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'layout' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="out-h">What to build</h2><small>Everything is on by default.</small></div></div>
+					<div class="wpta-head"><span class="wpta-tile"><?php echo wp_kses( self::icon( 'layout' ), self::kses() ); ?></span><div><h2 id="out-h">What to build</h2><small>Everything is on by default.</small></div></div>
 					<div class="wpta-pills"><?php self::build_toggles( $s ); ?></div>
 				</section>
 
 				<?php self::media_section( $s ); ?>
 
 				<section class="wpta-card wpta-sec" id="sync" aria-labelledby="sync-h">
-					<div class="wpta-head"><span class="wpta-tile"><?php echo self::icon( 'sync' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="sync-h">Keep in sync</h2><small><?php echo self::doc_link( 'sync', 'What a sync pushes and keeps' ); // phpcs:ignore WordPress.Security.EscapeOutput -- escaped in doc_link(). ?></small></div></div>
+					<div class="wpta-head"><span class="wpta-tile"><?php echo wp_kses( self::icon( 'sync' ), self::kses() ); ?></span><div><h2 id="sync-h">Keep in sync</h2><small><?php echo wp_kses_post( self::doc_link( 'sync', 'What a sync pushes and keeps' ) ); ?></small></div></div>
 					<div class="wpta-pills"><?php self::auto_toggle( $s, $gh, 'Sync to GitHub automatically' ); ?></div>
 				</section>
 
 				<section class="wpta-card wpta-sec" id="data" aria-labelledby="data-h">
-					<div class="wpta-head"><span class="wpta-tile is-bad"><?php echo self::icon( 'database' ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?></span><div><h2 id="data-h">Plugin data</h2><small>Clear the AI cache, run history and stored zips. Settings and your GitHub repo are not touched.</small></div></div>
+					<div class="wpta-head"><span class="wpta-tile is-bad"><?php echo wp_kses( self::icon( 'database' ), self::kses() ); ?></span><div><h2 id="data-h">Plugin data</h2><small>Clear the AI cache, run history and stored zips. Settings and your GitHub repo are not touched.</small></div></div>
 					<p class="wpta-actions">
-						<button type="button" class="wpta-btn is-danger wpta-clear"><?php echo self::icon( 'trash', 16 ); // phpcs:ignore WordPress.Security.EscapeOutput -- constant markup. ?>Clear data</button>
+						<button type="button" class="wpta-btn is-danger wpta-clear"><?php echo wp_kses( self::icon( 'trash', 16 ), self::kses() ); ?>Clear data</button>
 						<a class="wpta-link" href="<?php echo esc_url( self::setup_url( true ) ); ?>">Run the setup again</a>
 					</p>
 					<p class="wpta-msg wpta-clear-msg" aria-live="polite"></p>

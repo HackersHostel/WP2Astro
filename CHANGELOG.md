@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.3.1
+
+The first release for the WordPress.org plugin directory.
 
 - Passes the WordPress.org upload check (Plugin Check): templates and prompts no longer use heredocs, job folders and
   cache files go through WordPress's file functions, and its false alarms are explained in the code.
+- The local model's **Server URL** is cleaned up before **Test** and **Load models** use it.
+- The dashboard escapes its icons, logos and links where it prints them (`wp_kses()` with an SVG allowlist,
+  `wp_kses_post()`), instead of marking them as safe.
+- `readme.txt` lists the WordPress.org contributor (`mahmudurrahmanlabib`), and `.wordpress-org/` has the six
+  screenshots its captions describe.
 
 ## 0.3.0
 
