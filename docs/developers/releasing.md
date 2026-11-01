@@ -97,7 +97,7 @@ committing, to check the setup first. From then on, pushing a tag publishes to G
 
 | File | Size | Made from |
 |---|---|---|
-| `icon.svg`, `icon-128x128.png`, `icon-256x256.png` | 128 and 256 px | `assets/logo.svg` |
+| `icon.svg`, `icon-128x128.png`, `icon-256x256.png` | 128 and 256 px | `assets/logo.svg` (`brand/svg/glyph/wa-glyph-teal.svg`) |
 | `banner-772x250.png`, `banner-1544x500.png` | 772×250 and 1544×500 px | `dev/wporg/banner.svg` |
 | `screenshot-1.png` … `screenshot-6.png` | about 1200 px wide | the local test site |
 

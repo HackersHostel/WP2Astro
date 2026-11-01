@@ -1,0 +1,114 @@
+{
+ "violet/wa-mark-violet": [
+  "#6e56cf",
+  "#ffffff"
+ ],
+ "violet/wa-favicon-violet": [
+  "#6e56cf",
+  "#ffffff"
+ ],
+ "violet/wa-round-violet": [
+  "#6e56cf",
+  "#ffffff"
+ ],
+ "violet/wa-maskable-violet": [
+  "#6e56cf",
+  "#ffffff"
+ ],
+ "violet/wa-bubble-violet": [
+  "#6e56cf",
+  "#ffffff"
+ ],
+ "blue/wa-mark-blue": [
+  "#2b62d9",
+  "#ffffff"
+ ],
+ "blue/wa-favicon-blue": [
+  "#2b62d9",
+  "#ffffff"
+ ],
+ "blue/wa-round-blue": [
+  "#2b62d9",
+  "#ffffff"
+ ],
+ "blue/wa-maskable-blue": [
+  "#2b62d9",
+  "#ffffff"
+ ],
+ "blue/wa-bubble-blue": [
+  "#2b62d9",
+  "#ffffff"
+ ],
+ "teal/wa-mark-teal": [
+  "#0f766e",
+  "#ffffff"
+ ],
+ "teal/wa-favicon-teal": [
+  "#0f766e",
+  "#ffffff"
+ ],
+ "teal/wa-round-teal": [
+  "#0f766e",
+  "#ffffff"
+ ],
+ "teal/wa-maskable-teal": [
+  "#0f766e",
+  "#ffffff"
+ ],
+ "teal/wa-bubble-teal": [
+  "#0f766e",
+  "#ffffff"
+ ],
+ "ember/wa-mark-ember": [
+  "#c2410c",
+  "#ffffff"
+ ],
+ "ember/wa-favicon-ember": [
+  "#c2410c",
+  "#ffffff"
+ ],
+ "ember/wa-round-ember": [
+  "#c2410c",
+  "#ffffff"
+ ],
+ "ember/wa-maskable-ember": [
+  "#c2410c",
+  "#ffffff"
+ ],
+ "ember/wa-bubble-ember": [
+  "#c2410c",
+  "#ffffff"
+ ],
+ "ink/wa-mark-ink": [
+  "#18181b",
+  "#ffffff"
+ ],
+ "ink/wa-favicon-ink": [
+  "#18181b",
+  "#ffffff"
+ ],
+ "ink/wa-round-ink": [
+  "#18181b",
+  "#ffffff"
+ ],
+ "ink/wa-maskable-ink": [
+  "#18181b",
+  "#ffffff"
+ ],
+ "ink/wa-bubble-ink": [
+  "#18181b",
+  "#ffffff"
+ ],
+ "glyph/wa-glyph-dark": [
+  "#18181b"
+ ],
+ "glyph/wa-glyph-light": [
+  "#ededf0"
+ ],
+ "glyph/wa-glyph-teal": [
+  "#0f766e"
+ ],
+ "glyph/wa-glyph-teal-dark": [
+  "#2dd4bf"
+ ]
+}
