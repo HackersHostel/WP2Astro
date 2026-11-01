@@ -16,6 +16,8 @@ GitHub and keeps it in sync. `README.md`, `readme.txt` (WordPress.org format) an
 - Generated files must be deterministic — no timestamps — or every sync commits.
 - No heredocs: WordPress.org's upload check rejects them. Use a nowdoc (`<<<'MD'`) with `{{name}}` placeholders and
   `strtr()`. Explain each `phpcs:ignore` after `--`.
+- Escape where you print, own markup included: icons and logos with `wp_kses( …, self::kses() )` (post HTML plus
+  their SVG), HTML fragments with `wp_kses_post()`. Never silence `EscapeOutput` except for exception messages.
 - External requests are listed in `docs/privacy.md` and `readme.txt` (External services); keep both current.
 - Hooks have a WordPress-style docblock with `@since`, mirrored in `docs/developers/hooks.md`.
 - User-facing changes: update the matching `docs/` page (WordPress style guide: sentence case, second person, exact UI

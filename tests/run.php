@@ -265,6 +265,18 @@ foreach ( array_merge( glob( __DIR__ . '/../includes/*.php' ), array( __DIR__ . 
 }
 check( 'wporg: no heredocs', $heredocs, array() );
 
+// Reviewers ask for output to be escaped where it is printed, own markup included: only exception messages, which are
+// never printed as HTML, may skip it.
+$unescaped = array();
+foreach ( array_merge( glob( __DIR__ . '/../includes/*.php' ), array( __DIR__ . '/../wp2astro.php', __DIR__ . '/../uninstall.php' ) ) as $php ) {
+	foreach ( file( $php ) as $n => $line ) {
+		if ( str_contains( $line, 'phpcs:ignore WordPress.Security.EscapeOutput' ) && ! str_contains( $line, 'EscapeOutput.ExceptionNotEscaped' ) ) {
+			$unescaped[] = basename( $php ) . ':' . ( $n + 1 );
+		}
+	}
+}
+check( 'wporg: output is escaped, not ignored', $unescaped, array() );
+
 /* ------------------------------------------------------------ readme.txt */
 
 // WordPress.org readme rules (https://developer.wordpress.org/plugins/wordpress-org/how-your-readme-txt-works/),
